@@ -72,7 +72,7 @@ xx, yy = np.meshgrid(x,y)
 sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volcanic_mafic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volconic_felsic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
-# sedimentary_df[['Z','azimuth','dip','polarity','formation']] = [200,90,0,1,'sedimentary']
+
 Volcanic_mafic_df[['Z','azimuth','dip','polarity','formation']] = [1000,90,0,1,'Volcanic_mafic']
 Volconic_felsic_df[['Z','azimuth','dip','polarity','formation']] = [600,90,0,1,'Volconic_felsic']
 
@@ -81,6 +81,7 @@ orientation_df = pd.concat([orientation_df,
                             Volconic_felsic_df])
 
 # %%
+## Faults
 #get the fault data from Smith et. al. (2023)
 fault_df = pd.read_csv('Data/Patua_fault_data.csv', header=0)
 # convert the coordinates
@@ -95,17 +96,62 @@ def convert_strike_to_azimuth(strike):
         azimuth += 360
     return azimuth
 
-#split the surface points and orientation points. Here use the same coordinates for surface and orientation point
-fault_surface_df = fault_df[['X','Y','Z','formation']]
+def angle2vector(dip,azimuth):
+    x = np.sin(np.deg2rad(dip)) * np.sin(np.deg2rad(azimuth))
+    y = np.sin(np.deg2rad(dip)) * np.cos(np.deg2rad(azimuth))
+    z = np.cos(np.deg2rad(dip)) 
+    return x,y,z
 
+
+def find_points_on_perpendicular_plane(origin,pole_vector, d):
+    # x = origin[0] - (y - origin[1])*pole_vector[1]/pole_vector[0]
+    x = np.sqrt(d/(1+pole_vector[0]**2/pole_vector[1]**2))+origin[0]
+    y = np.sqrt(d-(x-origin[0])**2) + origin[1]
+    # y = np.array(y)
+    z = np.array(origin[2])
+    return np.array([x,y,z])
+
+
+def extrapolate_surfacepoints_along_plane(origin, pole_vector, number_points_2_create = 2, distance = 400):
+    ds = np.linspace(origin[1]-distance,origin[1]+distance,number_points_2_create)
+    points =np.array([find_points_on_perpendicular_plane(origin,pole_vector,d) for d in ds])
+    return points
+
+
+
+
+# %%
+# Process the fault data
 
 fault_df['azimuth'] = fault_df['strike'].apply(convert_strike_to_azimuth)
-fault_orientation_df = fault_df[['azimuth','dip','polarity','X','Y','Z','formation']]
+
+new_fault_data_df = pd.DataFrame(columns=['X','Y','Z','azimuth','dip','polarity','formation'])
+for index, row in fault_df.iterrows():
+    V =np.array(angle2vector(row['dip'],row['azimuth']))
+    origin = row[['X','Y','Z']].to_numpy()
+    points = extrapolate_surfacepoints_along_plane(origin, pole_vector=V)
+
+    for point in points:
+        new_row = {'X':point[0],'Y':point[1],'Z':point[2],'azimuth':row['azimuth'],'dip':row['dip'],'polarity':row['polarity'],'formation':row['formation']}
+        new_fault_data_df = new_fault_data_df.append(new_row, ignore_index=True)
+   
+# %%
+#split the surface points and orientation points. Here use the same coordinates for surface and orientation point
+fault_surface_df = new_fault_data_df[['X','Y','Z','formation']]
+# Put faults and surface data together
+fault_orientation_df = fault_df[['X','Y','Z','azimuth','dip','polarity','formation']]
 
 orientation_df = pd.concat([orientation_df,fault_orientation_df])
 surfacepoints_df = pd.concat([surfacepoints_df,fault_surface_df])
+
+
+
+
+# save
 surfacepoints_df.to_csv('./Data/Patua_surface_points.csv',index=False)
 
 orientation_df.to_csv('./Data/Patua_orientations.csv',index=False)
 
 
+
+# %%

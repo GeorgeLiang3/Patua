@@ -34,6 +34,9 @@ geo_data = gp.create_data( extent=[P['xmin'], P['xmax'], P['ymin'], P['ymax'], P
                           path_o=data_path + "Patua_orientations.csv",
                           path_i=data_path + "Patua_surface_points.csv")
 
+# # for experiment
+# del_surfaces = ['fault2','fault3', 'fault4', 'fault5', 'fault6', 'fault7', 'fault8', 'fault9', 'fault10', 'fault11', 'fault12','GT' ,'Volcanic_mafic','Volconic_felsic']
+# geo_data.delete_surfaces(del_surfaces, remove_data=True)
 
 gp.map_series_to_surfaces(geo_data, {"Fault_Series1": 'fault1',
                                      "Fault_Series2": 'fault2',
@@ -48,7 +51,9 @@ gp.map_series_to_surfaces(geo_data, {"Fault_Series1": 'fault1',
                                      "Fault_Series11": 'fault11',
                                      "Fault_Series12": 'fault12',
                                     "Strat_Series": ('Volcanic_mafic','Volconic_felsic',
-                                    'GT')})
+                                    'GT')
+                                    }
+                                    )
 geo_data.set_is_fault(['Fault_Series1',
                        'Fault_Series2',
                        'Fault_Series3',
@@ -74,6 +79,8 @@ model.create_tensorflow_graph(gradient = False)
 model.compute_model()
 # %%
 gp._plot.plot_3d(model)
-# %%
+
+
+
 gp.plot.plot_section(model, cell_number=15,
                          direction='y', show_data=True)
