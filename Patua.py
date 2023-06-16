@@ -6,7 +6,7 @@ sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
 import gempy as gp
 from gempy.core.tensor.modeltf_var import ModelTF
 
-
+import numpy as np
 # %%
 
 P = {}
@@ -36,9 +36,11 @@ geo_data = gp.create_data( extent=[P['xmin'], P['xmax'], P['ymin'], P['ymax'], P
 
 # # for experiment
 # del_surfaces = ['fault2','fault3', 'fault4', 'fault5', 'fault6', 'fault7', 'fault8', 'fault9', 'fault10', 'fault11', 'fault12','GT' ,'Volcanic_mafic','Volconic_felsic']
+# del_surfaces = ['intrusion']
 # geo_data.delete_surfaces(del_surfaces, remove_data=True)
-
-gp.map_series_to_surfaces(geo_data, {"Fault_Series1": 'fault1',
+# "Intrusion": 'intrusion',
+gp.map_series_to_surfaces(geo_data, {"Intrusion": 'intrusion',
+                                     "Fault_Series1": 'fault1',
                                      "Fault_Series2": 'fault2',
                                      "Fault_Series3": 'fault3',
                                      "Fault_Series4": 'fault4',
@@ -50,10 +52,29 @@ gp.map_series_to_surfaces(geo_data, {"Fault_Series1": 'fault1',
                                      "Fault_Series10": 'fault10',
                                      "Fault_Series11": 'fault11',
                                      "Fault_Series12": 'fault12',
-                                    "Strat_Series": ('Volcanic_mafic','Volconic_felsic',
-                                    'GT')
+                                    "Sedimentary_Series": ('Volcanic_mafic','Volconic_felsic',
+                                    'GT'),
+                                    "Basement":'basement'
                                     }
                                     )
+
+order_series = ['Fault_Series1',
+                'Fault_Series2',
+                'Fault_Series3',
+                'Fault_Series4',
+                'Fault_Series5',
+                'Fault_Series6',
+                'Fault_Series7',
+                'Fault_Series8',
+                'Fault_Series9',
+                'Fault_Series10',
+                'Fault_Series11',
+                'Fault_Series12',
+                'Sedimentary_Series',
+                'Basement']
+
+# geo_data.reorder_series(order_series)
+
 geo_data.set_is_fault(['Fault_Series1',
                        'Fault_Series2',
                        'Fault_Series3',
@@ -68,6 +89,22 @@ geo_data.set_is_fault(['Fault_Series1',
                        'Fault_Series12',
                        ])
 
+mapping_object = {"Fault_Series1":np.array([1,1,1]),
+                  "Fault_Series2":np.array([1,1,1]),
+                  "Fault_Series3":np.array([1,1,1]),
+                  "Fault_Series4":np.array([1,1,1]),
+                  "Fault_Series5": np.array([1,1,1]),
+                  "Fault_Series6":np.array([1,1,1]),
+                  "Fault_Series7":np.array([1,1,1]),
+                  "Fault_Series8": np.array([1,1,1]),
+                  "Fault_Series9": np.array([1,1,1]),
+                  "Fault_Series10":np.array([1,1,1]),
+                  "Fault_Series11":np.array([1,1,1]),
+                  "Fault_Series12":np.array([1,1,1]),
+                  "Intrusion":np.array([1,1,0.1]),
+                  "Sedimentary_Series": np.array([1,1,1]),
+                  }
+gp.assign_global_anisotropy(geo_data,mapping_object)
 
 # %%
 ## Initialize the model
@@ -81,6 +118,7 @@ model.compute_model()
 gp._plot.plot_3d(model)
 
 
-
-gp.plot.plot_section(model, cell_number=15,
+# %%
+gp.plot.plot_section(model, cell_number=18,
                          direction='y', show_data=True)
+# %%

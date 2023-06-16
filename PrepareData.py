@@ -72,13 +72,16 @@ xx, yy = np.meshgrid(x,y)
 sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volcanic_mafic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volconic_felsic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
+GT_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 
 Volcanic_mafic_df[['Z','azimuth','dip','polarity','formation']] = [1000,90,0,1,'Volcanic_mafic']
 Volconic_felsic_df[['Z','azimuth','dip','polarity','formation']] = [600,90,0,1,'Volconic_felsic']
+GT_df[['Z','azimuth','dip','polarity','formation']] = [-200,90,0,1,'GT']
 
 orientation_df = pd.concat([orientation_df,
                             Volcanic_mafic_df,
-                            Volconic_felsic_df])
+                            Volconic_felsic_df,
+                            GT_df])
 
 # %%
 ## Faults
@@ -136,13 +139,32 @@ for index, row in fault_df.iterrows():
         new_fault_data_df = new_fault_data_df.append(new_row, ignore_index=True)
    
 # %%
+# Intrusion
+intrusion_data_df = pd.DataFrame(columns=['X','Y','Z','azimuth','dip','polarity','formation'])
+intrusion_center = [P['xmin']+7450,P['ymin']+3480,P['zmax'] - 2000]
+intrusion_radius = 400
+
+azimuth_dict = {'south': 180,
+                'west': 270,
+                'north':0,
+                'east': 90}
+
+point_south = {'X':intrusion_center[0],'Y':intrusion_center[1]-intrusion_radius,'Z':intrusion_center[2],'azimuth':azimuth_dict['north'],'dip':90,'polarity':1,'formation':'intrusion'}
+point_west = {'X':intrusion_center[0]-intrusion_radius,'Y':intrusion_center[1],'Z':intrusion_center[2],'azimuth':azimuth_dict['east'],'dip':90,'polarity':1,'formation':'intrusion'}
+point_north = {'X':intrusion_center[0],'Y':intrusion_center[1]+intrusion_radius,'Z':intrusion_center[2],'azimuth':azimuth_dict['south'],'dip':90,'polarity':1,'formation':'intrusion'}
+point_east = {'X':intrusion_center[0]+intrusion_radius,'Y':intrusion_center[1],'Z':intrusion_center[2],'azimuth':azimuth_dict['west'],'dip':90,'polarity':1,'formation':'intrusion'}
+intrusion_data_df = intrusion_data_df.append([point_south,point_west,point_north,point_east], ignore_index=True)
+intrusion_surface_df = intrusion_data_df[['X','Y','Z','formation']]
+intrusion_orientation_df = intrusion_data_df[['X','Y','Z','azimuth','dip','polarity','formation']]
+
+# %%
 #split the surface points and orientation points. Here use the same coordinates for surface and orientation point
 fault_surface_df = new_fault_data_df[['X','Y','Z','formation']]
 # Put faults and surface data together
 fault_orientation_df = fault_df[['X','Y','Z','azimuth','dip','polarity','formation']]
 
-orientation_df = pd.concat([orientation_df,fault_orientation_df])
-surfacepoints_df = pd.concat([surfacepoints_df,fault_surface_df])
+orientation_df = pd.concat([orientation_df,fault_orientation_df,intrusion_orientation_df])
+surfacepoints_df = pd.concat([surfacepoints_df,fault_surface_df,intrusion_surface_df])
 
 
 
