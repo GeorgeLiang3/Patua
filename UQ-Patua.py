@@ -3,9 +3,12 @@
 import sys
 sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
 sys.path.append('/Volumes/GoogleDrive/My Drive/')
+sys.path.append('/Users/zhouji/Documents/github/PyNoddyInversion/code/')
+
+%matplotlib inline
 # %%
 from GemPhy.Stat.Bayes import *
-from GemPhy.Geophysics.utils.util import *
+from GemPhy.Geophysics.utils.util import constant64,dotdict,concat_xy_and_scale,calculate_slope_scale
 from gempy.assets.geophysics import Receivers,GravityPreprocessing
 from gempy.core.grid_modules.grid_types import CenteredRegGrid
 
@@ -15,10 +18,18 @@ from gempy.core.tensor.modeltf_var import ModelTF
 from operator import add
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+import timeit
+from sklearn.metrics import mean_squared_error
+
 from Patua import PutuaModel
+from LoadInputDataUtility import loadData
+# from VisualizationUtilities import plt_scatter,get_norm
+# %%
 
 P_model = PutuaModel()
 init_model = P_model.init_model()
+loadData(P_model.P)
 # %%
 # init_model.compute_model()
 # gp.plot.plot_section(init_model, cell_number=18,
@@ -30,26 +41,31 @@ args = dotdict({
     'learning_rate': 0.5,
     'Adam_iterations':200,
     'number_init': 2,
-    'resolution':[20,20,20],
+    'resolution':[30,30,30],
     'grav_res':5
 })
 model_extent = [None]*(6)
 model_extent[::2] = P_model.P['xy_origin']
 model_extent[1::2] = list( map(add, P_model.P['xy_origin'], P_model.P['xy_extent'] ) )
 
-X_r = np.linspace(model_extent[0],model_extent[1],args.grav_res)
-Y_r = np.linspace(model_extent[2],model_extent[3],args.grav_res)
+# X_r = np.linspace(model_extent[0],model_extent[1],args.grav_res)
+# Y_r = np.linspace(model_extent[2],model_extent[3],args.grav_res)
 
-r = []
-for x in X_r:
-    for y in Y_r:
-        r.append(np.array([x,y]))
+# r = []
+# for x in X_r:
+#     for y in Y_r:
+#         r.append(np.array([x,y]))
 
-Z_r = model_extent[-1] # at the top surface
-xyz = np.meshgrid(X_r, Y_r, Z_r)
-xy_ravel = np.vstack(list(map(np.ravel, xyz))).T
+X_r = P_model.P['Grav']['xObs']
+Y_r = P_model.P['Grav']['yObs']
+Z_r = [model_extent[-1]]*P_model.P['Grav']['nObsPoints']
 
-radius = [1000,1000,3000]
+# Z_r = model_extent[-1] # at the top surface
+# xyz = np.meshgrid(X_r, Y_r, Z_r)
+# xy_ravel = np.vstack(list(map(np.ravel, xyz))).T
+
+xyz = np.stack((X_r,Y_r,Z_r)).T
+radius = [2000,2000,3000]
 
 # %%
 # @tf.function
@@ -91,15 +107,17 @@ model_prior = init_model
 model_extent = [None]*(6)
 model_extent[::2] = P_model.P['xy_origin']
 model_extent[1::2] = list( map(add, P_model.P['xy_origin'], P_model.P['xy_extent'] ) )
-receivers = Receivers(radius,model_extent,xy_ravel,kernel_resolution = args.resolution)
+receivers = Receivers(radius,model_extent,xyz,kernel_resolution = args.resolution)
 
 Reg_kernel = CenteredRegGrid(receivers.xy_ravel,radius=receivers.model_radius,resolution=receivers.kernel_resolution)
 
 # Define gravity kernel
 
 # We define the regularization term to be the max of three dimension or diagnal distance, for regular grid
-max_length = np.sqrt(Reg_kernel.dxyz[0]**2 + Reg_kernel.dxyz[1]**2 + Reg_kernel.dxyz[2]**2)
-max_slope = 1.5*2/max_length * model_prior.rf
+max_slope = calculate_slope_scale(Reg_kernel,rf = model_prior.rf)
+
+# max_length = np.sqrt(Reg_kernel.dxyz[0]**2 + Reg_kernel.dxyz[1]**2 + Reg_kernel.dxyz[2]**2)
+# max_slope = 1.5*2/max_length * model_prior.rf
 
 model_prior.activate_customized_grid(Reg_kernel)
 gpinput = model_prior.get_graph_input()
@@ -116,5 +134,47 @@ tz = tf.constant(tz_center_regulargrid,model_prior.tfdtype)
 # grav
 
 # %%
-sf = 
-grav = forward(sf,tz,model_prior,densities,sigmoid = True):
+sf = constant64(model_prior.geo_data.surface_points.df[['X_r','Y_r','Z_r']].to_numpy())
+densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+# densities = tf.expand_dims(densities,0)
+properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+
+# %%
+start = timeit.default_timer()
+grav = forward(sf,tz,model_prior,properties,sigmoid = True)
+end = timeit.default_timer()
+print('forward computing time: %.3f' % (end - start))
+# %%
+grav = -grav - min(-grav)
+Data_obs = P_model.P['Grav']['Obs'] = P_model.P['Grav']['Obs'] - (min(P_model.P['Grav']['Obs']))
+# %%
+P = P_model.P
+fig, ax = plt.subplots()
+
+s=22
+edgecolors='k'
+cf = ax.scatter(P['Grav']['xObs'], P['Grav']['yObs'], c = P['Grav']['Obs'], cmap = 'jet', edgecolors=edgecolors,s=s)
+plt.colorbar(cf, orientation = 'vertical', ax=ax, fraction=0.046, pad=0.04)
+ax.set_xlim([P['xmin'], P['xmax']])
+ax.set_ylim([P['ymin'], P['ymax']])
+plt.show()
+
+# %%
+fig, ax = plt.subplots()
+
+cf = ax.scatter(P['Grav']['xObs'], P['Grav']['yObs'], c = grav, cmap = 'jet', edgecolors=edgecolors,s=s)
+plt.colorbar(cf, orientation = 'vertical', ax=ax, fraction=0.046, pad=0.04)
+ax.set_xlim([P['xmin'], P['xmax']])
+ax.set_ylim([P['ymin'], P['ymax']])
+plt.show()
+
+print(mean_squared_error(P['Grav']['Obs'],grav))
+# ax.set_title(title)
+# ax.set_aspect('equal', 'box')
+# ax.ticklabel_format(style='sci', axis='x')
+# AddFaults2Axis(P['Viz']['FaultsXY'], ax, alpha=fault_alpha, lw=fault_lw, 
+#                 ballsize=fault_ballsize)   
+
+# if(yticks == 'off'):
+#     ax.set_yticks([])
+# %%

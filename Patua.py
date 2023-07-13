@@ -105,7 +105,7 @@ class PutuaModel():
                         }
         gp.assign_global_anisotropy(self.geo_data,mapping_object)
         # assign densities to the model, fault series with -1 
-        self.geo_data.add_surface_values([2.6, -1, -1, -1,-1, -1, -1,-1, -1, -1,-1, -1, -1, 2.1, 2.2, 2.3, 2.5])
+        self.geo_data.add_surface_values([2.6, -1, -1, -1,-1, -1, -1,-1, -1, -1,-1, -1, -1, 2.1, 2.2, 2.3, 2.5], 'densities')
 
         # %%
         ## Initialize the model
@@ -117,8 +117,9 @@ class PutuaModel():
         return model
 # %%
 if __name__ == "__main__":
-    model = PutuaModel()
+    P = PutuaModel()
     # %%
+    model = P.init_model()
     model.compute_model()
     # %%
     gp._plot.plot_3d(model)

@@ -3,10 +3,12 @@
 Created on Mon May 11 13:45:19 2020
 
 @author: ahinoamp
+@customize: George
 """
 import numpy as np
 import pandas as pd
 from scipy.interpolate import griddata
+import random
 
 def loadData(P):
 
@@ -26,6 +28,18 @@ def loadData(P):
     P['Grav']['medianObs'] = np.median(P['Grav']['Obs'])
     P['Grav']['stdObs'] = np.std(P['Grav']['Obs'])
     P['Grav']['nObsPoints'] = len(P['Grav']['Obs'])
+
+    ########
+    # Because the gravity data is too many (400) for the software now, I will reduce the number of data points for experiment
+    random.seed(10)
+    indices = random.sample(range(P['Grav']['nObsPoints']), k=100)
+
+    P['Grav']['xObs'] = [P['Grav']['xObs'][i] for i in indices]
+    P['Grav']['yObs'] = [P['Grav']['yObs'][i] for i in indices]
+    P['Grav']['Obs'] = [P['Grav']['Obs'][i] for i in indices]
+    P['Grav']['nObsPoints'] = len(P['Grav']['Obs'])
+
+
 
     #Granite top observations
     P['GT'] = {}
