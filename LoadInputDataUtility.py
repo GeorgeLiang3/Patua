@@ -10,7 +10,7 @@ import pandas as pd
 from scipy.interpolate import griddata
 import random
 
-def loadData(P):
+def loadData(P, number_data = 100):
 
     #Gravity observations
     ########################
@@ -32,7 +32,7 @@ def loadData(P):
     ########
     # Because the gravity data is too many (400) for the software now, I will reduce the number of data points for experiment
     random.seed(10)
-    indices = random.sample(range(P['Grav']['nObsPoints']), k=100)
+    indices = random.sample(range(P['Grav']['nObsPoints']), k=number_data)
 
     P['Grav']['xObs'] = [P['Grav']['xObs'][i] for i in indices]
     P['Grav']['yObs'] = [P['Grav']['yObs'][i] for i in indices]
