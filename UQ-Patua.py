@@ -48,6 +48,7 @@ loadData(P_model.P)
 
 # %%
 args = dotdict({
+    "foldername": "Patua",
     'learning_rate': 0.5,
     'Adam_iterations':200,
     'number_init': 2,
@@ -254,22 +255,33 @@ MCMCargs = dotdict({
 
 mu0_list = [mu]
 samples_RMH_list = []
-samples_HMC_list = []
 accept_RMH_list = []
-accept_HMC_list = []
+# samples_HMC_list = []
+# accept_HMC_list = []
 for mu0 in mu0_list:
   samples_RMH,samples_HMC,accept_RMH,accept_HMC = mcmc(mu0,stat_model, RMH = True, HMC = True,MCMCargs = MCMCargs)
   samples_RMH_list.append(samples_RMH)
-  samples_HMC_list.append(samples_HMC)
   accept_RMH_list.append(accept_RMH)
-  accept_HMC_list.append(accept_HMC)
+  # samples_HMC_list.append(samples_HMC)
+  # accept_HMC_list.append(accept_HMC)
 
-json_dump = json.dumps({'samples_RMH_list': samples_RMH_list,
-                        'samples_HMC_list': samples_HMC_list,
-                        'accepted_rate_RMH':accept_RMH_list,
-                        'accepted_rate_HMC':accept_HMC_list,
-                        # 'MAP':MAP.numpy(),
-                        # 'mu_list':np.array(mu_list),
-                        # 'loss':cost_A
-                        }, cls=NumpyEncoder)
+
 # %%
+
+stat_model.set_result_path('/home/ib012512/Documents/Results/'+args.foldername+time.strftime("-%Y%m%d-%H%M%S"))
+# %%
+saving_dict = {'samples_RMH_list': samples_RMH_list,
+              'accepted_rate_RMH':accept_RMH_list,
+              # 'samples_HMC_list': samples_HMC_list,
+              # 'accepted_rate_HMC':accept_HMC_list,
+              'MAPs' : mu0_list,
+              }
+saving_dict.update(args)
+saving_dict.update(MCMCargs)
+
+json_dump = json.dumps(saving_dict, cls=NumpyEncoder)
+
+with open(stat_model.path + '.json', 'w') as outfile:
+    json.dump(json_dump, outfile)
+
+print('Done')
