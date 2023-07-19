@@ -41,13 +41,13 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 print('load done')
 Bayesargs = dotdict({
-    'prior_sfp_std': 50,
-    'likelihood_std':0.09,
+    'prior_sfp_std': 10,
+    'likelihood_std':1, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
 P_model = PutuaModel()
 init_model = P_model.init_model()
-loadData(P_model.P, number_data = 5)
+loadData(P_model.P, number_data = 200)
 # %%
 # init_model.compute_model()
 # gp.plot.plot_section(init_model, cell_number=18,
@@ -60,20 +60,12 @@ args = dotdict({
     'learning_rate': 0.5,
     'Adam_iterations':200,
     'number_init': 2,
-    'resolution':[30,30,30],
-    'grav_res':5
+    'resolution':[16,16,12]
 })
 model_extent = [None]*(6)
 model_extent[::2] = P_model.P['xy_origin']
 model_extent[1::2] = list( map(add, P_model.P['xy_origin'], P_model.P['xy_extent'] ) )
 
-# X_r = np.linspace(model_extent[0],model_extent[1],args.grav_res)
-# Y_r = np.linspace(model_extent[2],model_extent[3],args.grav_res)
-
-# r = []
-# for x in X_r:
-#     for y in Y_r:
-#         r.append(np.array([x,y]))
 
 X_r = P_model.P['Grav']['xObs']
 Y_r = P_model.P['Grav']['yObs']
@@ -118,6 +110,15 @@ model_prior.create_tensorflow_graph(delta = 2.,gradient=True,compute_gravity=Tru
 g_center_regulargrid = GravityPreprocessing(Reg_kernel)
 tz_center_regulargrid = tf.constant(g_center_regulargrid.set_tz_kernel(),model_prior.tfdtype)
 tz = tf.constant(tz_center_regulargrid,model_prior.tfdtype)
+
+
+###### Convolutional method  (to save memory) ##########
+
+
+###### ################## #######
+
+
+
 
 
 # # %%
@@ -250,14 +251,14 @@ stat_model.set_likelihood(Data_measurement,Data_std)
 stat_model.monitor=False
 
 # %%
-
+print(stat_model.log_likelihood(mu))
 ##########MCMC###########
 
 MCMCargs = dotdict({
-    'num_results': 10,
+    'num_results': 10000,
     'number_burnin':0,
-    'RMH_step_size': 0.03,
-    'HMC_step_size': 0.005,
+    'RMH_step_size': 0.02,
+    'HMC_step_size': 0.001,
     'leapfrogs':4,
 })
 
