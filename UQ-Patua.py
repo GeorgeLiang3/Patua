@@ -3,7 +3,7 @@
 import sys
 sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
 sys.path.append('/Volumes/GoogleDrive/My Drive/')
-sys.path.append('/Users/zhouji/Documents/github/PyNoddyInversion/code/')
+# sys.path.append('/Users/zhouji/Documents/github/PyNoddyInversion/code/')
 
 %matplotlib inline
 # %%
@@ -34,12 +34,13 @@ from LoadInputDataUtility import loadData
 # %%
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
-    'likelihood_std':0.09,
+    'prior_den_std': 0.2,
+    'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
 P_model = PutuaModel()
 init_model = P_model.init_model()
-loadData(P_model.P)
+loadData(P_model.P, number_data = 20)
 # %%
 # init_model.compute_model()
 # gp.plot.plot_section(init_model, cell_number=18,
@@ -52,8 +53,7 @@ args = dotdict({
     'learning_rate': 0.5,
     'Adam_iterations':200,
     'number_init': 2,
-    'resolution':[30,30,30],
-    'grav_res':5
+    'resolution':[16,16,12]
 })
 model_extent = [None]*(6)
 model_extent[::2] = P_model.P['xy_origin']
@@ -79,10 +79,41 @@ xyz = np.stack((X_r,Y_r,Z_r)).T
 radius = [2000,2000,3000]
 
 # %%
+###### Base gravity forward function #######
 # @tf.function
 def forward(sf,tz,model_,densities,sigmoid = True):
   final_block,final_property,block_matrix,block_mask,size,scalar_field,sfai,grav = model_.compute_gravity(tz,surface_points = sf,kernel = Reg_kernel,receivers = receivers,method = 'kernel_reg',gradient = sigmoid,LOOP_FLAG = False,values_properties =densities)
   return grav
+
+# %%
+###### Wrapper gravity forward function #######
+# @tf.function
+def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,sigmoid = True, transformer = None, densities = False):
+
+  if transformer is None:
+    mu_norm = mu
+  else:
+    mu_norm = transformer.reverse_transform(mu)
+
+
+  if not densities: # use default densities defined in the model
+    densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+    sfp = tf.concat([fault_and_intrusion_points[:,2],mu_norm],axis = -1)
+
+  else:
+    densities = constant64(mu_norm[-5:])
+    sfp_z = tf.concat([fault_and_intrusion_points[:,2],mu_norm[:-5]],axis = -1)
+    # concatenate the auxiliary densities
+    auxiliary_densities = constant64([-1]*12)
+    densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
+
+  sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
+  properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+
+  gravity = forward(sfp_xyz,tz,model_,properties,sigmoid)
+  gravity = -gravity - tf.math.reduce_min(-gravity)
+  return gravity
+
 
 
 
@@ -112,19 +143,19 @@ tz_center_regulargrid = tf.constant(g_center_regulargrid.set_tz_kernel(),model_p
 tz = tf.constant(tz_center_regulargrid,model_prior.tfdtype)
 
 
-# # %%
-# sf = constant64(model_prior.geo_data.surface_points.df[['X_r','Y_r','Z_r']].to_numpy())
-# densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
-# # densities = tf.expand_dims(densities,0)
-# properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+# %%
+sf = constant64(model_prior.geo_data.surface_points.df[['X_r','Y_r','Z_r']].to_numpy())
+densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+# densities = tf.expand_dims(densities,0)
+properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
 
-# # %%
-# start = timeit.default_timer()
-# grav = forward(sf,tz,model_prior,properties,sigmoid = True)
-# end = timeit.default_timer()
-# print('forward computing time: %.3f' % (end - start))
-# # %%
-# grav = -grav - min(-grav)
+# %%
+start = timeit.default_timer()
+grav = forward(sf,tz,model_prior,properties,sigmoid = True)
+end = timeit.default_timer()
+print('forward computing time: %.3f' % (end - start))
+# %%
+grav = -grav - min(-grav)
 Data_obs = P_model.P['Grav']['Obs'] = P_model.P['Grav']['Obs'] - (min(P_model.P['Grav']['Obs']))
 # %%
 ####### Plot the measurement data
@@ -139,19 +170,19 @@ ax.set_xlim([P['xmin'], P['xmax']])
 ax.set_ylim([P['ymin'], P['ymax']])
 plt.show()
 
-# # %%
-# fig, ax = plt.subplots()
+# %%
+fig, ax = plt.subplots()
 
-# cf = ax.scatter(P['Grav']['xObs'], P['Grav']['yObs'], c = grav, cmap = 'jet', edgecolors=edgecolors,s=s)
-# plt.colorbar(cf, orientation = 'vertical', ax=ax, fraction=0.046, pad=0.04)
-# ax.set_xlim([P['xmin'], P['xmax']])
-# ax.set_ylim([P['ymin'], P['ymax']])
-# # ax.set_title(title)
-# # ax.set_aspect('equal', 'box')
-# # ax.ticklabel_format(style='sci', axis='x')
-# plt.show()
+cf = ax.scatter(P['Grav']['xObs'], P['Grav']['yObs'], c = grav, cmap = 'jet', edgecolors=edgecolors,s=s)
+plt.colorbar(cf, orientation = 'vertical', ax=ax, fraction=0.046, pad=0.04)
+ax.set_xlim([P['xmin'], P['xmax']])
+ax.set_ylim([P['ymin'], P['ymax']])
+# ax.set_title(title)
+# ax.set_aspect('equal', 'box')
+# ax.ticklabel_format(style='sci', axis='x')
+plt.show()
 
-# print(mean_squared_error(P['Grav']['Obs'],grav))
+print(mean_squared_error(P['Grav']['Obs'],grav))
 
 # %%
 ######### DEFINE STATISTIC MODEL ###########
@@ -164,19 +195,23 @@ model_prior.static_xy = static_xy
 strata_points = all_points[28:]
 all_points_shape = all_points.shape
 
-num_sf_para = strata_points.shape[0]
+num_sf_var = strata_points.shape[0]
 sfp_mean = strata_points[:,2]
-sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_para)
+sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_var)
 
-prior_mean = tf.concat([sfp_mean],axis = 0)
-prior_std = tf.concat([sfp_std],axis = 0)
+num_den_var = 5
+den_mean = constant64([2.8,2.3,2.53,2.39,2.6])
+den_std = constant64([0.2,0.17,0.1,0.14,0.1])
+
+prior_mean = tf.concat([sfp_mean,den_mean],axis = 0)
+prior_std = tf.concat([sfp_std,den_std],axis = 0)
 
 
 num_para_total = prior_mean.shape[0]
 
 ### Define the bounds for parameters, bounds has to be normalized first 
-lowerBound = prior_mean - 2*prior_std
-upperBound = prior_mean + 2*prior_std
+lowerBound = prior_mean - 3*prior_std
+upperBound = prior_mean + 3*prior_std
 
 # invertible logarithmic transform
 ilt = ILT(lowerBound,upperBound)
@@ -186,32 +221,12 @@ mean_prior_norm = ilt.transform(prior_mean)
 transformer = ilt
 mu = transformer.transform(prior_mean)
 
-# %%
 
-# Normalization and rearranging to gempy input
-# @tf.function
-def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,sigmoid = True, transformer = None):
-
-  if transformer is not None:
-    mu_norm = transformer.reverse_transform(mu)
-  else:
-    mu_norm = mu
-
-  sfp = tf.concat([fault_and_intrusion_points[:,2],mu_norm],axis = -1)
-
-  mu0 = concat_xy_and_scale(sfp,model_,model_.static_xy,all_points_shape)
-
-  densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
-  properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
-
-  gravity = forward(mu0,tz,model_,properties,sigmoid)
-  gravity = -gravity - tf.math.reduce_min(-gravity)
-  return gravity
 # %%
 
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer)
+    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,
@@ -242,7 +257,22 @@ stat_model.set_likelihood(Data_measurement,Data_std)
 stat_model.monitor=False
 
 # %%
-
+mu = constant64(([0.0000000e+00, 8.8817842e-16, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 8.8817842e-16, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+       0.0000000e+00, 0.0000000e+00, 0.0,0.0,0.0,0.0,0.0]))
+print(ilt.reverse_transform(mu))
+stat_model.gravity_function(mu,stat_model.model,stat_model.tz,stat_model.fault_and_intrusion_points,stat_model.all_points_shape,transformer = stat_model.transformer, densities = True)
+# %%
 ##########MCMC###########
 
 MCMCargs = dotdict({
