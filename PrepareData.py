@@ -141,7 +141,7 @@ for index, row in fault_df.iterrows():
 # %%
 # Intrusion
 intrusion_data_df = pd.DataFrame(columns=['X','Y','Z','azimuth','dip','polarity','formation'])
-intrusion_center = [P['xmin']+7450,P['ymin']+3480,P['zmax'] - 2000]
+intrusion_center = [P['xmin']+6000,P['ymin']+3480,P['zmax'] - 2000]
 intrusion_radius = 400
 
 azimuth_dict = {'south': 180,

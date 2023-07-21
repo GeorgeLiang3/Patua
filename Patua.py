@@ -17,8 +17,9 @@ class PutuaModel():
         self.P['HypP']['ErrorType'] = 'Global'
         self.P['DataTypes'] = ['Grav']
 
-        self.P['xy_origin']=[317883,4379246, 1200-4000]
-        self.P['xy_extent'] = [9000,9400,4000]
+        self.P['xy_origin']=[318000,4379246, 1200-4000]
+        self.P['xy_extent'] = [7000,9000,4000]
+        # self.P['xy_extent'] = [9000,9400,4000]
 
         # Define the model limits
         self.P['xmin'] = self.P['xy_origin'][0]
