@@ -47,7 +47,7 @@ Bayesargs = dotdict({
 
 P_model = PutuaModel()
 init_model = P_model.init_model()
-loadData(P_model.P, number_data = 200)
+loadData(P_model.P, number_data = 100)
 # %%
 # init_model.compute_model()
 # gp.plot.plot_section(init_model, cell_number=18,
@@ -57,9 +57,9 @@ loadData(P_model.P, number_data = 200)
 # %%
 args = dotdict({
     "foldername": "Patua",
-    'learning_rate': 0.5,
-    'Adam_iterations':200,
-    'number_init': 2,
+    # 'learning_rate': 0.5,
+    # 'Adam_iterations':200,
+    # 'number_init': 2,
     'resolution':[16,16,12]
 })
 model_extent = [None]*(6)
@@ -71,9 +71,6 @@ X_r = P_model.P['Grav']['xObs']
 Y_r = P_model.P['Grav']['yObs']
 Z_r = [model_extent[-1]]*P_model.P['Grav']['nObsPoints']
 
-# Z_r = model_extent[-1] # at the top surface
-# xyz = np.meshgrid(X_r, Y_r, Z_r)
-# xy_ravel = np.vstack(list(map(np.ravel, xyz))).T
 
 xyz = np.stack((X_r,Y_r,Z_r)).T
 radius = [2000,2000,3000]
@@ -184,8 +181,8 @@ prior_std = tf.concat([sfp_std],axis = 0)
 num_para_total = prior_mean.shape[0]
 
 ### Define the bounds for parameters, bounds has to be normalized first 
-lowerBound = prior_mean - 2*prior_std
-upperBound = prior_mean + 2*prior_std
+lowerBound = prior_mean - 3*prior_std
+upperBound = prior_mean + 3*prior_std
 
 # invertible logarithmic transform
 ilt = ILT(lowerBound,upperBound)
@@ -258,7 +255,7 @@ MCMCargs = dotdict({
     'num_results': 10000,
     'number_burnin':0,
     'RMH_step_size': 0.02,
-    'HMC_step_size': 0.001,
+    'HMC_step_size': 0.003,
     'leapfrogs':4,
 })
 
@@ -268,7 +265,7 @@ accept_RMH_list = []
 samples_HMC_list = []
 accept_HMC_list = []
 for mu0 in mu0_list:
-  samples_RMH,samples_HMC,accept_RMH,accept_HMC = mcmc(mu0,stat_model, RMH = True, HMC = False,MCMCargs = MCMCargs)
+  samples_RMH,samples_HMC,accept_RMH,accept_HMC = mcmc(mu0,stat_model, RMH = True, HMC = True,MCMCargs = MCMCargs)
   samples_RMH_list.append(samples_RMH)
   accept_RMH_list.append(accept_RMH)
   samples_HMC_list.append(samples_HMC)
