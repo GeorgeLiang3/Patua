@@ -254,7 +254,7 @@ mu = transformer.transform(prior_mean)
 
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
+    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fix_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,
