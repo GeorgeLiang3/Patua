@@ -88,7 +88,7 @@ def forward(sf,tz,model_,densities,sigmoid = True):
 # %%
 ###### Wrapper gravity forward function #######
 # @tf.function
-def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,sigmoid = True, transformer = None, densities = False):
+def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, transformer = None, densities = False):
 
   if transformer is None:
     mu_norm = mu
@@ -98,11 +98,11 @@ def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,si
 
   if not densities: # use default densities defined in the model
     densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
-    sfp = tf.concat([fault_and_intrusion_points[:,2],mu_norm],axis = -1)
+    sfp_z = tf.concat([fix_points[:,2],mu_norm],axis = -1)
 
   else:
     densities = constant64(mu_norm[-5:])
-    sfp_z = tf.concat([fault_and_intrusion_points[:,2],mu_norm[:-5]],axis = -1)
+    sfp_z = tf.concat([fix_points[:,2],mu_norm[:-5]],axis = -1)
     # concatenate the auxiliary densities
     auxiliary_densities = constant64([-1]*12)
     densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
@@ -187,12 +187,18 @@ print(mean_squared_error(P['Grav']['Obs'],grav))
 # %%
 ######### DEFINE STATISTIC MODEL ###########
 
-# define the static x y coordinates
+# define the fix points coordinates
 all_points = model_prior.surface_points.df[['X','Y','Z']].to_numpy()
-fault_and_intrusion_points = all_points[:28]
+df = model_prior.geo_data.surface_points.df
+num_fault_points = len(df[df['surface'].str.startswith('fault')])
+num_intrusion_points = len(df[df['surface'] == 'intrusion'])
+num_GT_points = len(df[df['surface'] == 'GT'])
+
+num_fix_points = num_fault_points + num_intrusion_points + num_GT_points # keep all the intrusion, faults and GT points fixed
+fix_points = all_points[:num_fix_points] 
 static_xy = all_points[:,0:2]
 model_prior.static_xy = static_xy
-strata_points = all_points[28:]
+strata_points = all_points[num_fix_points:]
 all_points_shape = all_points.shape
 
 num_sf_var = strata_points.shape[0]
@@ -226,7 +232,7 @@ mu = transformer.transform(prior_mean)
 
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
+    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fix_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,
@@ -241,7 +247,7 @@ def log_likelihood(self,mu):
 stat_model = Stat_model(model_prior,forward_function,num_para_total, tz, transformer = ilt)
 # customize rewrite the likelihood function
 Stat_model.log_likelihood = log_likelihood
-stat_model.fault_and_intrusion_points = fault_and_intrusion_points
+stat_model.fix_points = fix_points
 stat_model.all_points_shape = all_points_shape
 # %%
 # Set Prior
@@ -257,21 +263,14 @@ stat_model.set_likelihood(Data_measurement,Data_std)
 stat_model.monitor=False
 
 # %%
-mu = constant64(([0.0000000e+00, 8.8817842e-16, 0.0000000e+00, 0.0000000e+00,
+mu = constant64(([0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
        0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
        0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
        0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 8.8817842e-16, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
-       0.0000000e+00, 0.0000000e+00, 0.0,0.0,0.0,0.0,0.0]))
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 4.4408921e-16,
+       0.0000000e+00, 0.0000000e+00, 0.0000000e+00]))
 print(ilt.reverse_transform(mu))
-stat_model.gravity_function(mu,stat_model.model,stat_model.tz,stat_model.fault_and_intrusion_points,stat_model.all_points_shape,transformer = stat_model.transformer, densities = True)
+stat_model.gravity_function(mu,stat_model.model,stat_model.tz,stat_model.fix_points,stat_model.all_points_shape,transformer = stat_model.transformer, densities = True)
 # %%
 ##########MCMC###########
 

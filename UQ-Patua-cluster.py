@@ -24,8 +24,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 tfd = tfp.distributions
-import matplotlib.pyplot as plt
-import timeit
+# import matplotlib.pyplot as plt
+# import timeit
 
 # from sklearn.metrics import mean_squared_error
 import json
@@ -80,7 +80,34 @@ radius = [2000,2000,3000]
 def forward(sf,tz,model_,densities,sigmoid = True):
   final_block,final_property,block_matrix,block_mask,size,scalar_field,sfai,grav = model_.compute_gravity(tz,surface_points = sf,kernel = Reg_kernel,receivers = receivers,method = 'kernel_reg',gradient = sigmoid,LOOP_FLAG = False,values_properties =densities)
   return grav
+# %%
+###### Wrapper gravity forward function #######
+# @tf.function
+def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, transformer = None, densities = False):
 
+  if transformer is None:
+    mu_norm = mu
+  else:
+    mu_norm = transformer.reverse_transform(mu)
+
+
+  if not densities: # use default densities defined in the model
+    densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+    sfp_z = tf.concat([fix_points[:,2],mu_norm],axis = -1)
+
+  else:
+    densities = constant64(mu_norm[-5:])
+    sfp_z = tf.concat([fix_points[:,2],mu_norm[:-5]],axis = -1)
+    # concatenate the auxiliary densities
+    auxiliary_densities = constant64([-1]*12)
+    densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
+
+  sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
+  properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+
+  gravity = forward(sfp_xyz,tz,model_,properties,sigmoid)
+  gravity = -gravity - tf.math.reduce_min(-gravity)
+  return gravity
 
 
 ###### Forward compute gravity #######
@@ -164,18 +191,28 @@ Data_obs = P_model.P['Grav']['Obs'] = P_model.P['Grav']['Obs'] - (min(P_model.P[
 
 # define the static x y coordinates
 all_points = model_prior.surface_points.df[['X','Y','Z']].to_numpy()
-fault_and_intrusion_points = all_points[:28]
+df = model_prior.geo_data.surface_points.df
+num_fault_points = len(df[df['surface'].str.startswith('fault')])
+num_intrusion_points = len(df[df['surface'] == 'intrusion'])
+num_GT_points = len(df[df['surface'] == 'GT'])
+
+num_fix_points = num_fault_points + num_intrusion_points + num_GT_points # keep all the intrusion, faults and GT points fixed
+fix_points = all_points[:num_fix_points] 
 static_xy = all_points[:,0:2]
 model_prior.static_xy = static_xy
-strata_points = all_points[28:]
+strata_points = all_points[num_fix_points:]
 all_points_shape = all_points.shape
 
-num_sf_para = strata_points.shape[0]
+num_sf_var = strata_points.shape[0]
 sfp_mean = strata_points[:,2]
-sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_para)
+sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_var)
 
-prior_mean = tf.concat([sfp_mean],axis = 0)
-prior_std = tf.concat([sfp_std],axis = 0)
+num_den_var = 5
+den_mean = constant64([2.8,2.3,2.53,2.39,2.6])
+den_std = constant64([0.2,0.17,0.1,0.14,0.1])
+
+prior_mean = tf.concat([sfp_mean,den_mean],axis = 0)
+prior_std = tf.concat([sfp_std,den_std],axis = 0)
 
 
 num_para_total = prior_mean.shape[0]
@@ -192,32 +229,32 @@ mean_prior_norm = ilt.transform(prior_mean)
 transformer = ilt
 mu = transformer.transform(prior_mean)
 
-# %%
+# # %%
 
-# Normalization and rearranging to gempy input
-# @tf.function
-def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,sigmoid = True, transformer = None):
+# # Normalization and rearranging to gempy input
+# # @tf.function
+# def forward_function(mu,model_,tz,fault_and_intrusion_points,all_points_shape,sigmoid = True, transformer = None):
 
-  if transformer is not None:
-    mu_norm = transformer.reverse_transform(mu)
-  else:
-    mu_norm = mu
+#   if transformer is not None:
+#     mu_norm = transformer.reverse_transform(mu)
+#   else:
+#     mu_norm = mu
 
-  sfp = tf.concat([fault_and_intrusion_points[:,2],mu_norm],axis = -1)
+#   sfp = tf.concat([fault_and_intrusion_points[:,2],mu_norm],axis = -1)
 
-  mu0 = concat_xy_and_scale(sfp,model_,model_.static_xy,all_points_shape)
+#   mu0 = concat_xy_and_scale(sfp,model_,model_.static_xy,all_points_shape)
 
-  densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
-  properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+#   densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+#   properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
 
-  gravity = forward(mu0,tz,model_,properties,sigmoid)
-  gravity = -gravity - tf.math.reduce_min(-gravity)
-  return gravity
+#   gravity = forward(mu0,tz,model_,properties,sigmoid)
+#   gravity = -gravity - tf.math.reduce_min(-gravity)
+#   return gravity
 # %%
 
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer)
+    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fault_and_intrusion_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,
@@ -232,7 +269,7 @@ def log_likelihood(self,mu):
 stat_model = Stat_model(model_prior,forward_function,num_para_total, tz, transformer = ilt)
 # customize rewrite the likelihood function
 Stat_model.log_likelihood = log_likelihood
-stat_model.fault_and_intrusion_points = fault_and_intrusion_points
+stat_model.fix_points = fix_points
 stat_model.all_points_shape = all_points_shape
 # %%
 # Set Prior

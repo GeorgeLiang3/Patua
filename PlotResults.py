@@ -2,7 +2,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-with open('/Users/zhouji/Documents/Cluster/Results/Patua-20230719-155901.json') as f:
+with open('/Users/zhouji/Documents/Cluster/Results/Patua-20230721-164008.json') as f:
   data = json.load(f)
 data = json.loads(data)
 
