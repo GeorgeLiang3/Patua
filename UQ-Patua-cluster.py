@@ -289,7 +289,7 @@ print(stat_model.log_likelihood(mu))
 ##########MCMC###########
 
 MCMCargs = dotdict({
-    'num_results': 10000,
+    'num_results': 10,
     'number_burnin':0,
     'RMH_step_size': 0.02,
     'HMC_step_size': 0.003,

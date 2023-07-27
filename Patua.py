@@ -2,11 +2,15 @@
 # %%
 import sys
 sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
+sys.path.append('/Volumes/GoogleDrive/My Drive/')
 
 import gempy as gp
+from GemPhy.Geophysics.utils.util import constant64
 from gempy.core.tensor.modeltf_var import ModelTF
+import tensorflow as tf
 
 import numpy as np
+import matplotlib.pyplot as plt
 # %%
 class PutuaModel():
     def __init__(self) -> None:
@@ -116,6 +120,35 @@ class PutuaModel():
         model.create_tensorflow_graph(gradient = False)
 
         return model
+    
+def plot_results(mu,delta, max_slope,fix_points, path_name = None):
+
+    densities = constant64(mu[-5:])
+    sfp_z = tf.concat([fix_points[:,2],mu[:-5]],axis = -1)
+    # concatenate the auxiliary densities, because faults has no densities but GemPy requires a value there
+    auxiliary_densities = constant64([-1]*12)
+    densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
+
+    sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
+    properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+
+
+    P = PutuaModel()
+    model = ModelTF(P.geo_data)
+    model.activate_regular_grid()
+    model.geo_data.create_tensorflow_graph(delta = delta,gradient=True,max_slope = max_slope)
+    model.compute_model(sfp_xyz)
+
+    cross_section = gp.plot.plot_section(model, 
+                                         cell_number=18,
+                                         block = model.solutions.values_matrix,
+                                         direction='y',
+                                         show_grid=True, 
+                                         show_data=True)
+    if path_name is None:
+        path_name = './Fig/model_nosmooth.png'
+    cross_section.fig.savefig(path_name,dpi = 400)
+
 # %%
 if __name__ == "__main__":
     P = PutuaModel()
@@ -123,10 +156,10 @@ if __name__ == "__main__":
     model = P.init_model()
     model.compute_model()
     # %%
-    gp._plot.plot_3d(model)
+    # gp._plot.plot_3d(model)
 
 
     # %%
-    gp.plot.plot_section(model, cell_number=18,
-                            direction='y', show_data=True)
-
+    cross_section = gp.plot.plot_section(model, cell_number=18,
+                            direction='y',show_grid=True, show_data=True)
+    cross_section.fig.savefig('./Fig/model_nosmooth.png',dpi = 400)

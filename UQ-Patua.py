@@ -95,9 +95,8 @@ def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, tr
   else:
     mu_norm = transformer.reverse_transform(mu)
 
-
   if not densities: # use default densities defined in the model
-    densities = constant64(model_prior.geo_data.surfaces.df['densities'].to_numpy())
+    densities = constant64(model_.geo_data.surfaces.df['densities'].to_numpy())
     sfp_z = tf.concat([fix_points[:,2],mu_norm],axis = -1)
 
   else:
@@ -108,7 +107,7 @@ def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, tr
     densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
 
   sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
-  properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
+  properties = tf.stack([model_.TFG.lith_label,densities],axis = 0)
 
   gravity = forward(sfp_xyz,tz,model_,properties,sigmoid)
   gravity = -gravity - tf.math.reduce_min(-gravity)
