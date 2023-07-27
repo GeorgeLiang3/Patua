@@ -8,8 +8,8 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 from MCMC import mcmc
-from GemPhy.Geophysics.utils.util import constant64,dotdict,concat_xy_and_scale,calculate_slope_scale
-from gempy.assets.geophysics import Receivers,GravityPreprocessing
+from GemPhy.Geophysics.utils.util import constant64,concat_xy_and_scale,calculate_slope_scale
+from gempy.assets.geophysics import GravityPreprocessing
 from GemPhy.Stat.Bayes import Stat_model
 
 class UQ_Patua():
