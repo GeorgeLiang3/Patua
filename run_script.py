@@ -8,7 +8,7 @@ sys.path.append('/Volumes/GoogleDrive/My Drive/')
 
 # %%
 from GemPhy.Stat.Bayes import Stat_model
-from GemPhy.Geophysics.utils.util import constant64,dotdict,concat_xy_and_scale,calculate_slope_scale
+from GemPhy.Geophysics.utils.util import constant64,dotdict,concat_xy_and_scale
 from gempy.assets.geophysics import Receivers,GravityPreprocessing
 from GemPhy.Geophysics.utils.ILT import *
 from gempy.core.grid_modules.grid_types import CenteredRegGrid
