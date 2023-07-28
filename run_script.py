@@ -45,7 +45,7 @@ args = dotdict({
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
     'prior_den_std': 0.2,
-    'likelihood_std': 10
+    'likelihood_std': 5
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
@@ -138,6 +138,6 @@ uq_P.stat_model.log_likelihood(mu)
 
 # %%
 uq_P.set_initial_status([mu])
-if __name__ is '__main__':
+if __name__ == '__main__':
     uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
 # %%
