@@ -1,6 +1,10 @@
 
 # %%
 import sys
+# local dir
+sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
+sys.path.append('/Volumes/GoogleDrive/My Drive/')
+# cluster dir
 sys.path.append('/home/ib012512/Documents/GemPhy/GP_old')
 sys.path.append('/home/ib012512/Documents/')
 
@@ -134,5 +138,6 @@ uq_P.stat_model.log_likelihood(mu)
 
 # %%
 uq_P.set_initial_status([mu])
-uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
+if __name__ is '__main__':
+    uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
 # %%

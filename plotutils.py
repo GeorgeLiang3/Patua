@@ -1,4 +1,3 @@
-# %%
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +16,6 @@ def get_last_patua_file(directory):
     else:
         return None
 
-# %%
 def plot_result(data):
 
   samples_RMH = np.asarray(data['samples_RMH_list'])[0].T
@@ -32,18 +30,3 @@ def plot_result(data):
 
   plot_traces(samples_RMH)
   plot_traces(samples_HMC)
-
-# filename = '/Users/zhouji/Documents/Cluster/Results/Patua-20230727-160137.json'
-
-result_dir = '/Users/zhouji/Documents/Cluster/Results/'
-filename = result_dir+ get_last_patua_file(result_dir)
-print(filename)
-# %%
-
-
-with open(filename) as f:
-  data = json.load(f)
-data = json.loads(data)
-
-plot_result(data)
-# %%

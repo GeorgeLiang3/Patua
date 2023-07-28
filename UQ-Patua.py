@@ -88,26 +88,26 @@ def forward(sf,tz,model_,densities,sigmoid = True):
 # %%
 ###### Wrapper gravity forward function #######
 # @tf.function
-def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, transformer = None, densities = False):
-
+def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, transformer = None, densities = True):
+  print('densities:', densities)
   if transformer is None:
     mu_norm = mu
   else:
     mu_norm = transformer.reverse_transform(mu)
 
   if not densities: # use default densities defined in the model
-    densities = constant64(model_.geo_data.surfaces.df['densities'].to_numpy())
+    properties = constant64(model_.geo_data.surfaces.df['densities'].to_numpy())
     sfp_z = tf.concat([fix_points[:,2],mu_norm],axis = -1)
 
   else:
-    densities = constant64(mu_norm[-5:])
+    properties = mu_norm[-5:]
     sfp_z = tf.concat([fix_points[:,2],mu_norm[:-5]],axis = -1)
     # concatenate the auxiliary densities
     auxiliary_densities = constant64([-1]*12)
-    densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
+    properties = tf.concat([properties[:1],auxiliary_densities,properties[1:]],axis = -1)
 
   sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
-  properties = tf.stack([model_.TFG.lith_label,densities],axis = 0)
+  properties = tf.stack([model_.TFG.lith_label,properties],axis = 0)
 
   gravity = forward(sfp_xyz,tz,model_,properties,sigmoid)
   gravity = -gravity - tf.math.reduce_min(-gravity)
@@ -231,7 +231,7 @@ mu = transformer.transform(prior_mean)
 
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fix_points,self.all_points_shape,transformer = self.transformer,densities = self.densities )
+    Gm_ = self.gravity_function(mu,self.model,self.tz,self.fix_points,self.all_points_shape,transformer = self.transformer,densities = True )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,
