@@ -2,13 +2,15 @@ import sys
 sys.path.append('/home/ib012512/Documents/GemPhy/GP_old')
 sys.path.append('/home/ib012512/Documents/')
 
+
+import json
 import time
 import tensorflow as tf
 import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 from MCMC import mcmc
-from GemPhy.Geophysics.utils.util import constant64,concat_xy_and_scale,calculate_slope_scale
+from GemPhy.Geophysics.utils.util import constant64,concat_xy_and_scale,calculate_slope_scale,NumpyEncoder
 from gempy.assets.geophysics import GravityPreprocessing
 from GemPhy.Stat.Bayes import Stat_model
 
@@ -103,20 +105,44 @@ class UQ_Patua():
     gravity = gravity - tf.math.reduce_min(gravity)
     return gravity
   
-  def run_mcmc(self,MCMCargs, RMH = True, HMC = False):
+  def run_mcmc(self,MCMCargs, RMH = True, HMC = False, save = True):
+    self.MCMCargs = MCMCargs
     mu0_list = self.init_stat
     samples_RMH_list = []
     accept_RMH_list = []
     samples_HMC_list = []
     accept_HMC_list = []
 
-    self.stat_model.set_result_path('/home/ib012512/Documents/Results/'+self.args.foldername+time.strftime("-%Y%m%d-%H%M%S"))
     for mu0 in mu0_list:
         samples_RMH,samples_HMC,accept_RMH,accept_HMC = mcmc(mu0,self.stat_model, RMH = RMH, HMC = HMC,MCMCargs = MCMCargs)
         samples_RMH_list.append(samples_RMH)
         accept_RMH_list.append(accept_RMH)
         samples_HMC_list.append(samples_HMC)
         accept_HMC_list.append(accept_HMC)
+    if save:
+      self.save_results(samples_RMH_list,samples_HMC_list,accept_RMH_list,accept_HMC_list)
+
+  def save_results(self,samples_RMH_list,samples_HMC_list,accept_RMH_list,accept_HMC_list):
+
+    self.stat_model.set_result_path('/home/ib012512/Documents/Results/'+self.args.foldername+time.strftime("-%Y%m%d-%H%M%S"))
+
+    # %%
+    saving_dict = {'samples_RMH_list': samples_RMH_list,
+                  'accepted_rate_RMH':accept_RMH_list,
+                  'samples_HMC_list': samples_HMC_list,
+                  'accepted_rate_HMC':accept_HMC_list,
+                  # 'MAPs' : mu0_list,
+                  }
+    saving_dict.update(self.args)
+    saving_dict.update(self.Bayesargs)
+    saving_dict.update(self.MCMCargs)
+
+    json_dump = json.dumps(saving_dict, cls=NumpyEncoder)
+
+    with open(self.stat_model.path + '.json', 'w') as outfile:
+        json.dump(json_dump, outfile)
+
+    print('Saved')
     
 def log_likelihood(self,mu):
     # forward calculating gravity

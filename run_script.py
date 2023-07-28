@@ -1,9 +1,9 @@
 
 # %%
 import sys
-sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
-sys.path.append('/Volumes/GoogleDrive/My Drive/')
-# sys.path.append('/Users/zhouji/Documents/github/PyNoddyInversion/code/')
+sys.path.append('/home/ib012512/Documents/GemPhy/GP_old')
+sys.path.append('/home/ib012512/Documents/')
+
 
 
 # %%
@@ -41,14 +41,15 @@ args = dotdict({
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
     'prior_den_std': 0.2,
-    'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
+    'likelihood_std': 10
+    # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
 MCMCargs = dotdict({
-    'num_results': 10,
+    'num_results': 1000,
     'number_burnin':0,
-    'RMH_step_size': 0.03,
-    'HMC_step_size': 0.005,
+    'RMH_step_size': 0.2,
+    'HMC_step_size': 0.1,
     'leapfrogs':4,
 })
 # %%
@@ -133,5 +134,5 @@ uq_P.stat_model.log_likelihood(mu)
 
 # %%
 uq_P.set_initial_status([mu])
-uq_P.run_mcmc(MCMCargs)
+uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
 # %%
