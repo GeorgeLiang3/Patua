@@ -19,6 +19,10 @@ def loadData(P, number_data = 100):
                      & (ObsData['X']<(P['xmax'])) 
                      & (ObsData['Y']<(P['ymax']))) 
     ObsData = ObsData[filterLimits]
+
+    ########
+    # Because the gravity data is too many (400) for the software now, I will reduce the number of data points for experiment
+    ObsData = ObsData.sample(n = number_data, random_state = 1)
     
     P['Grav'] = {}
     
@@ -29,15 +33,13 @@ def loadData(P, number_data = 100):
     P['Grav']['stdObs'] = np.std(P['Grav']['Obs'])
     P['Grav']['nObsPoints'] = len(P['Grav']['Obs'])
 
-    ########
-    # Because the gravity data is too many (400) for the software now, I will reduce the number of data points for experiment
-    random.seed(10)
-    indices = random.sample(range(P['Grav']['nObsPoints']), k=number_data)
+    # random.seed(10)
+    # indices = random.sample(range(P['Grav']['nObsPoints']), k=number_data)
 
-    P['Grav']['xObs'] = [P['Grav']['xObs'][i] for i in indices]
-    P['Grav']['yObs'] = [P['Grav']['yObs'][i] for i in indices]
-    P['Grav']['Obs'] = [P['Grav']['Obs'][i] for i in indices]
-    P['Grav']['nObsPoints'] = len(P['Grav']['Obs'])
+    # P['Grav']['xObs'] = [P['Grav']['xObs'][i] for i in indices]
+    # P['Grav']['yObs'] = [P['Grav']['yObs'][i] for i in indices]
+    # P['Grav']['Obs'] = [P['Grav']['Obs'][i] for i in indices]
+    # P['Grav']['nObsPoints'] = len(P['Grav']['Obs'])
 
 
 
@@ -48,6 +50,8 @@ def loadData(P, number_data = 100):
     P['GT']['yObs'] = GraniteTopObs['Y'].values
     P['GT']['Obs'] = GraniteTopObs['Z'].values
     P['GT']['nObsPoints'] = len(P['GT']['Obs'])
+
+    return ObsData
 
     # #Magnetics observations
     # P['Mag'] = {}

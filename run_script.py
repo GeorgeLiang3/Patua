@@ -11,16 +11,16 @@ sys.path.append('/home/ib012512/Documents/')
 
 
 # %%
-from GemPhy.Stat.Bayes import Stat_model
-from GemPhy.Geophysics.utils.util import constant64,dotdict,concat_xy_and_scale
-from gempy.assets.geophysics import Receivers,GravityPreprocessing
+
+from GemPhy.Geophysics.utils.util import constant64,dotdict
+from gempy.assets.geophysics import Receivers
 from GemPhy.Geophysics.utils.ILT import *
 from gempy.core.grid_modules.grid_types import CenteredRegGrid
 
 # import gempy as gp
 # from gempy.core.tensor.modeltf_var import ModelTF
 
-from MCMC import mcmc
+
 from UQ import UQ_Patua
 
 from operator import add
@@ -28,7 +28,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 tfd = tfp.distributions
-import matplotlib.pyplot as plt
+
 
 
 from Patua import PutuaModel
@@ -39,7 +39,7 @@ from LoadInputDataUtility import loadData
 # %%
 args = dotdict({
     "foldername": "Patua",
-    'resolution':[16,16,12]
+    'resolution':[40,40,30]
 })
 
 Bayesargs = dotdict({
@@ -50,7 +50,7 @@ Bayesargs = dotdict({
 })
 
 MCMCargs = dotdict({
-    'num_results': 1000,
+    'num_results': 2,
     'number_burnin':0,
     'RMH_step_size': 0.2,
     'HMC_step_size': 0.1,
@@ -60,6 +60,8 @@ MCMCargs = dotdict({
 # Load the data
 P_model = PutuaModel()
 init_model = P_model.init_model()
+# %%
+init_model.compute_model()# TODO: Check if necessary. precompute the model to order the surfaces
 loadData(P_model.P, number_data = 20)
 Data_obs = P_model.P['Grav']['Obs'] = P_model.P['Grav']['Obs'] - (min(P_model.P['Grav']['Obs']))
 Data_measurement = tf.cast(Data_obs,init_model.dtype) 
@@ -86,13 +88,17 @@ all_points = init_model.surface_points.df[['X','Y','Z']].to_numpy()
 df = init_model.geo_data.surface_points.df
 num_fault_points = len(df[df['surface'].str.startswith('fault')])
 num_intrusion_points = len(df[df['surface'] == 'intrusion'])
-num_GT_points = len(df[df['surface'] == 'GT'])
+num_GT_points = len(df[df['surface'] == 'Volconic_felsic'])
 
 num_fix_points = num_fault_points + num_intrusion_points + num_GT_points # keep all the intrusion, faults and GT points fixed
+############################################
+# Define the statistic problem
+############################################
 
-fix_points = all_points[:num_fix_points] 
+# Be very careful here
+fix_points = tf.concat([all_points[:num_intrusion_points+num_fault_points],all_points[-num_GT_points:]],axis = 0)
 static_xy = all_points[:,0:2]
-strata_points = all_points[num_fix_points:]
+strata_points = all_points[num_intrusion_points+num_fault_points:-num_GT_points]
 all_points_shape = all_points.shape
 
 num_sf_var = strata_points.shape[0]
@@ -100,7 +106,7 @@ sfp_mean = strata_points[:,2]
 sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_var)
 
 num_den_var = 5
-den_mean = constant64([2.8,2.3,2.53,2.39,2.6])
+den_mean = constant64([2.9,2.1,2.2,2.3,2.8])
 den_std = constant64([0.2,0.17,0.1,0.14,0.1])
 
 prior_mean = tf.concat([sfp_mean,den_mean],axis = 0)
@@ -127,17 +133,21 @@ uq_P = UQ_Patua(gp_model    = init_model,
                 static_xy = static_xy,
                 Data_Obs = Data_measurement,
                 args = args,
-                Bayesargs = Bayesargs
+                Bayesargs = Bayesargs,
+                num_fault_points = num_fault_points,
+                num_intrusion_points = num_intrusion_points, 
+                num_GT_points = num_GT_points,
                 )
 # %%
 mu = ilt.transform(prior_mean)
 # %%
-uq_P.forward_function(mu)
+# uq_P.forward_function(mu)
 # %%
-uq_P.stat_model.log_likelihood(mu)
+# uq_P.stat_model.log_likelihood(mu)
 
 # %%
 uq_P.set_initial_status([mu])
 if __name__ == '__main__':
+    uq_P.forward_function(mu)
     uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
 # %%

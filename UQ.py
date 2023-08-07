@@ -1,7 +1,10 @@
 import sys
+# local dir
+sys.path.append('/Volumes/GoogleDrive/My Drive/GemPhy/GP_old/')
+sys.path.append('/Volumes/GoogleDrive/My Drive/')
+# cluster dir
 sys.path.append('/home/ib012512/Documents/GemPhy/GP_old')
 sys.path.append('/home/ib012512/Documents/')
-
 
 import json
 import time
@@ -15,7 +18,10 @@ from gempy.assets.geophysics import GravityPreprocessing
 from GemPhy.Stat.Bayes import Stat_model
 
 class UQ_Patua():
-  def __init__(self,gp_model,Reg_kernel,receivers,transformer,num_para_total,fix_points = None, static_xy = None, args = None,Bayesargs = None,Data_Obs = None) -> None:
+  def __init__(self,gp_model,Reg_kernel,receivers,transformer,num_para_total,fix_points = None, static_xy = None, args = None,Bayesargs = None,Data_Obs = None,
+               num_fault_points = None,
+               num_intrusion_points = None, 
+               num_GT_points = None,) -> None:
     self.gp_model = gp_model
     self.kernel = Reg_kernel
     self.receivers = receivers
@@ -25,6 +31,9 @@ class UQ_Patua():
     self.static_xy = static_xy
     self.args = args
     self.Bayesargs = Bayesargs
+    self.num_fault_points = num_fault_points
+    self.num_intrusion_points = num_intrusion_points
+    self.num_GT_points = num_GT_points
 
     self.all_points = self.gp_model.surface_points.df[['X','Y','Z']].to_numpy()
     self.all_points_shape = self.all_points.shape
@@ -66,7 +75,7 @@ class UQ_Patua():
     self.stat_model.monitor=False
 
 
-  def parameter2input(self,mu,transformer = None,densities = True):
+  def parameter2input(self,mu,transformer = None,DENSITIES_FLAG = True):
     '''
       This function convert the normalized flattened parameters to gempy forward input function
     '''
@@ -75,13 +84,16 @@ class UQ_Patua():
     else:
       mu_norm = transformer.reverse_transform(mu)
 
-    if not densities: # use default densities defined in the model
+    if not DENSITIES_FLAG: # use default densities defined in the model
       properties = constant64(self.gp_model.geo_data.surfaces.df['densities'].to_numpy())
-      sfp_z = tf.concat([self.fix_points[:,2],mu_norm],axis = -1)
+      # concatenate the surface points with order (intrusion, faults, strata, GT)
+      # TODO: this is a bit hacky, need to be improved. 
+      sfp_z = tf.concat([self.fix_points[:self.num_intrusion_points+self.num_fault_points,2],mu_norm,self.fix_points[-self.num_GT_points:,2]],axis = -1)
 
     else:
       properties = mu_norm[-5:]
-      sfp_z = tf.concat([self.fix_points[:,2],mu_norm[:-5]],axis = -1)
+      # concatenate the surface points with order (intrusion, faults, strata, GT)
+      sfp_z = tf.concat([self.fix_points[:self.num_intrusion_points+self.num_fault_points,2],mu_norm[:-5],self.fix_points[-self.num_GT_points:,2]],axis = -1)
       # concatenate the auxiliary densities
       auxiliary_densities = constant64([-1]*12)
       properties = tf.concat([properties[:1],auxiliary_densities,properties[1:]],axis = -1)
@@ -91,15 +103,15 @@ class UQ_Patua():
 
     return sfp_xyz,properties
 
-  def forward(self,sf,properties,sigmoid = True):
-    final_block,final_property,block_matrix,block_mask,size,scalar_field,sfai,grav = self.gp_model.compute_gravity(self.tz,surface_points = sf,kernel = self.kernel,receivers = self.receivers,method = 'kernel_reg',gradient = sigmoid,LOOP_FLAG = False,values_properties =properties)
+  def forward(self,sf,all_properties,sigmoid = True):
+    final_block,final_property,block_matrix,block_mask,size,scalar_field,sfai,grav = self.gp_model.compute_gravity(self.tz,surface_points = sf,kernel = self.kernel,receivers = self.receivers,method = 'kernel_reg',LOOP_FLAG = False,all_properties =all_properties, DEBUG_FLAG = True)
     return grav
   
-  def forward_function(self,mu,sigmoid = True, densities = True):
+  def forward_function(self,mu,sigmoid = True, DENSITIES_FLAG = True):
 
-    sfp_xyz,properties = self.parameter2input(mu,transformer= self.transformer, densities = densities)
+    sfp_xyz,all_properties = self.parameter2input(mu,transformer= self.transformer, DENSITIES_FLAG = DENSITIES_FLAG)
 
-    gravity = self.forward(sfp_xyz,properties,sigmoid)
+    gravity = self.forward(sfp_xyz,all_properties,sigmoid)
     # reverse the axis and deduce the min
     gravity = -gravity
     gravity = gravity - tf.math.reduce_min(gravity)
@@ -146,7 +158,7 @@ class UQ_Patua():
     
 def log_likelihood(self,mu):
     # forward calculating gravity
-    Gm_ = self.gravity_function(mu,sigmoid = True, densities = True )
+    Gm_ = self.gravity_function(mu,sigmoid = True, DENSITIES_FLAG = True )
 
     mvn_likelihood = tfd.MultivariateNormalTriL(
         loc=Gm_,

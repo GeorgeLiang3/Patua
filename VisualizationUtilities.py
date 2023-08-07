@@ -16,7 +16,7 @@ from scipy.interpolate import griddata
 # import GeneralInversionUtil as GI
 import matplotlib
 
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 
 def visualize_opt_step(filename, P):  
     '''Visualize a single optimisation step via a set of graphics'''    

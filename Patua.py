@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # %%
 class PutuaModel():
-    def __init__(self) -> None:
+    def __init__(self, resolution = [50,50,50]) -> None:
         
         self.P = {}
         self.P['HypP'] = {}
@@ -35,9 +35,8 @@ class PutuaModel():
         self.P['zmin'] = self.P['xy_origin'][2]
         self.P['zmax'] = self.P['xy_origin'][2]+self.P['xy_extent'][2]
 
-        # %%
         data_path = './Data/'
-        self.geo_data = gp.create_data( extent=[self.P['xmin'], self.P['xmax'], self.P['ymin'], self.P['ymax'], self.P['zmin'], self.P['zmax']], resolution=[50, 50, 50],
+        self.geo_data = gp.create_data( extent=[self.P['xmin'], self.P['xmax'], self.P['ymin'], self.P['ymax'], self.P['zmin'], self.P['zmax']], resolution=resolution,
                                 path_o=data_path + "Patua_orientations.csv",
                                 path_i=data_path + "Patua_surface_points.csv")
 
@@ -55,13 +54,14 @@ class PutuaModel():
                                             "Fault_Series10": 'fault10',
                                             "Fault_Series11": 'fault11',
                                             "Fault_Series12": 'fault12',
-                                            "Sedimentary_Series": ('Volcanic_mafic','Volconic_felsic',
-                                            'GT'),
+                                            "Sedimentary_Series": ('Sedimentary',
+                                                                   'Volcanic_mafic','Volconic_felsic'),
                                             "Basement":'basement'
                                             }
                                             )
 
-        # order_series = ['Fault_Series1',
+        # order_series = ['Intrusion',
+        #                 'Fault_Series1',
         #                 'Fault_Series2',
         #                 'Fault_Series3',
         #                 'Fault_Series4',
@@ -92,7 +92,7 @@ class PutuaModel():
                             'Fault_Series12',
                             ])
 
-        # Anisotropy
+        # Anisotropy, apply z direction extension to model intrusion
         mapping_object = {"Fault_Series1":np.array([1,1,1]),
                         "Fault_Series2":np.array([1,1,1]),
                         "Fault_Series3":np.array([1,1,1]),
@@ -105,61 +105,45 @@ class PutuaModel():
                         "Fault_Series10":np.array([1,1,1]),
                         "Fault_Series11":np.array([1,1,1]),
                         "Fault_Series12":np.array([1,1,1]),
-                        "Intrusion":np.array([1,1,0.1]),
+                        "Intrusion":np.array([1,1,0.01]),
                         "Sedimentary_Series": np.array([1,1,1]),
                         }
         gp.assign_global_anisotropy(self.geo_data,mapping_object)
-        # assign densities to the model, fault series with -1 
-        self.geo_data.add_surface_values([2.6, -1, -1, -1,-1, -1, -1,-1, -1, -1,-1, -1, -1, 2.1, 2.2, 2.3, 2.5], 'densities')
 
-        # %%
-        ## Initialize the model
+        # TODO: very hacky way to modify the order
+        self.geo_data.modify_order_surfaces(2,1)
+        self.geo_data.modify_order_surfaces(1,1)
+        # assign densities to the model, fault series with -1 
+        self.geo_data.add_surface_values([2.9,
+                                          -1, -1, -1,-1, -1, -1,-1, -1, -1,-1, -1, -1, 
+                                          2.1, 
+                                          2.2, 
+                                          2.3, 
+                                          2.8], 'densities')
+
+    ## Initialize the model
     def init_model(self):
         model = ModelTF(self.geo_data)
         model.activate_regular_grid()
         model.create_tensorflow_graph(gradient = False)
-
         return model
-    
-def plot_results(mu,delta, max_slope,fix_points, path_name = None):
-
-    densities = constant64(mu[-5:])
-    sfp_z = tf.concat([fix_points[:,2],mu[:-5]],axis = -1)
-    # concatenate the auxiliary densities, because faults has no densities but GemPy requires a value there
-    auxiliary_densities = constant64([-1]*12)
-    densities = tf.concat([densities[:1],auxiliary_densities,densities[1:]],axis = -1)
-
-    sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
-    properties = tf.stack([model_prior.TFG.lith_label,densities],axis = 0)
-
-
-    P = PutuaModel()
-    model = ModelTF(P.geo_data)
-    model.activate_regular_grid()
-    model.geo_data.create_tensorflow_graph(delta = delta,gradient=True,max_slope = max_slope)
-    model.compute_model(sfp_xyz)
-
-    cross_section = gp.plot.plot_section(model, 
-                                         cell_number=18,
-                                         block = model.solutions.values_matrix,
-                                         direction='y',
-                                         show_grid=True, 
-                                         show_data=True)
-    if path_name is None:
-        path_name = './Fig/model_nosmooth.png'
-    cross_section.fig.savefig(path_name,dpi = 400)
 
 # %%
 if __name__ == "__main__":
     P = PutuaModel()
     # %%
     model = P.init_model()
+    gp._plot.plot_3d(model, show_lith = False)
+    # %%
+
     model.compute_model()
     # %%
-    # gp._plot.plot_3d(model)
+    gp._plot.plot_3d(model)
 
 
     # %%
-    cross_section = gp.plot.plot_section(model, cell_number=18,
+    cross_section = gp.plot.plot_section(model, cell_number=25,
                             direction='y',show_grid=True, show_data=True)
     cross_section.fig.savefig('./Fig/model_nosmooth.png',dpi = 400)
+
+# %%

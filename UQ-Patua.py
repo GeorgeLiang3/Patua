@@ -107,9 +107,9 @@ def forward_function(mu,model_,tz,fix_points,all_points_shape,sigmoid = True, tr
     properties = tf.concat([properties[:1],auxiliary_densities,properties[1:]],axis = -1)
 
   sfp_xyz = concat_xy_and_scale(sfp_z,model_,model_.static_xy,all_points_shape)
-  properties = tf.stack([model_.TFG.lith_label,properties],axis = 0)
+  all_properties = tf.stack([model_.TFG.lith_label,properties],axis = 0)
 
-  gravity = forward(sfp_xyz,tz,model_,properties,sigmoid)
+  gravity = forward(sfp_xyz,tz,model_,all_properties,sigmoid)
   gravity = -gravity - tf.math.reduce_min(-gravity)
   return gravity
 

@@ -17,8 +17,8 @@ P['HypP']['jupyter'] = False
 P['HypP']['ErrorType'] = 'Global'
 P['DataTypes'] = ['Grav']
 
-P['xy_origin']=[317883,4379246, 1200-4000]
-P['xy_extent'] = [9000,9400,4000]
+P['xy_origin']=[318000,4379246, 1200-4000]
+P['xy_extent'] = [7000,9000,4000]
 
 # Define the model limits
 P['xmin'] = P['xy_origin'][0]
@@ -37,7 +37,8 @@ Viz.visualize_opt_step(figfilename, P)
 # %%
 surfacepoints_df = pd.DataFrame(P['GT'])
 surfacepoints_df = surfacepoints_df.drop('nObsPoints',axis=1)
-surfacepoints_df['formation'] = 'GT'
+# In GemPy the surface is defined as the bottom of the stratigraphic unit
+surfacepoints_df['formation'] = 'Volconic_felsic'
 surfacepoints_df.columns = ['X','Y','Z','formation']
 
 #Use a uniform mesh as the input and use a uniform thickness to define theZ
@@ -50,37 +51,53 @@ x = np.linspace(P['xy_origin'][0]+1500, P['xy_origin'][0]+P['xy_extent'][0]-1500
 y = np.linspace(P['xy_origin'][1]+1500, P['xy_origin'][1]+P['xy_extent'][1]-1500, ny)
 xx, yy = np.meshgrid(x,y)
 # sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
+Sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volcanic_mafic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
-Volconic_felsic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
+# %%
 
 
+y_coord_sed = Sedimentary_df['Y'] - P['xy_origin'][1] - P['xy_extent'][1]/2
+z_sed = -300*np.exp(-((y_coord_sed)**2/ 1000**2))
 
-# sedimentary_df[['Z','formation']] = [200,'sedimentary']
-Volcanic_mafic_df[['Z','formation']] = [1000,'Volcanic_mafic']
-Volconic_felsic_df[['Z','formation']] = [600,'Volconic_felsic']
+y_coord_vm = Sedimentary_df['Y'] - P['xy_origin'][1] - P['xy_extent'][1]/2
+z_vm = -300*np.exp(-((y_coord_vm)**2/ 1000**2))
+
+Sedimentary_df['Z'] = z_sed+1000
+Sedimentary_df['formation'] = 'Sedimentary'
+Volcanic_mafic_df['Z'] = z_vm+600
+Volcanic_mafic_df['formation'] = 'Volcanic_mafic'
+
+# Sedimentary_df[['Z','formation']] = [1000,'Sedimentary']
+# Volcanic_mafic_df[['Z','formation']] = [600,'Volcanic_mafic']
 
 surfacepoints_df = pd.concat([surfacepoints_df,
-                              Volcanic_mafic_df,
-                              Volconic_felsic_df])
+                              Sedimentary_df,
+                              Volcanic_mafic_df])
 
 ## Orientations
+## Because I don't have orientation data, I will make pseudo orientation data at the corner of the model. All pointing upwards.
+
 orientation_df = pd.DataFrame(columns=['X','Y','Z','azimuth','dip','polarity','formation'])
-nx, ny = (2, 1)
+nx, ny = (2, 2)
 x = np.linspace(P['xy_origin'][0], P['xy_origin'][0]+P['xy_extent'][0], nx)
 y = np.linspace(P['xy_origin'][1], P['xy_origin'][1]+P['xy_extent'][1], ny)
 xx, yy = np.meshgrid(x,y)
 sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
+Sedimentary_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 Volcanic_mafic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
-Volconic_felsic_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 GT_df = pd.DataFrame({'X': xx.flatten(), 'Y': yy.flatten()})
 
-Volcanic_mafic_df[['Z','azimuth','dip','polarity','formation']] = [1000,90,0,1,'Volcanic_mafic']
-Volconic_felsic_df[['Z','azimuth','dip','polarity','formation']] = [600,90,0,1,'Volconic_felsic']
-GT_df[['Z','azimuth','dip','polarity','formation']] = [-200,90,0,1,'GT']
+Sedimentary_df[['Z','azimuth','dip','polarity','formation']] = [1000,90,0,1,'Sedimentary']
+Volcanic_mafic_df[['Z','azimuth','dip','polarity','formation']] = [600,90,0,1,'Volcanic_mafic']
+GT_df[['Z','azimuth','dip','polarity','formation']] = [-200,90,0,1,'Volconic_felsic']
+
+# Manually add an orientation point to constraint the structure
+GT_df = GT_df.append({'X': 320000, 'Y': 4382000, 'Z': -300, 'azimuth': 90, 'dip': 60, 'polarity': 1, 'formation': 'Volconic_felsic'},ignore_index=True)
+
 
 orientation_df = pd.concat([orientation_df,
+                            Sedimentary_df,
                             Volcanic_mafic_df,
-                            Volconic_felsic_df,
                             GT_df])
 
 # %%
