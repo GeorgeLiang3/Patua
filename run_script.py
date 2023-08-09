@@ -62,8 +62,8 @@ P_model = PutuaModel()
 init_model = P_model.init_model()
 # %%
 init_model.compute_model()# TODO: Check if necessary. precompute the model to order the surfaces
-loadData(P_model.P, number_data = 20)
-Data_obs = P_model.P['Grav']['Obs'] = P_model.P['Grav']['Obs'] - (min(P_model.P['Grav']['Obs']))
+ObsData = loadData(P_model.P, number_data = 20)
+Data_obs = P_model.P['Grav']['Obs'] - (np.mean(P_model.P['Grav']['Obs']))
 Data_measurement = tf.cast(Data_obs,init_model.dtype) 
 
 # Define the receivers for gravity
@@ -129,6 +129,7 @@ uq_P = UQ_Patua(gp_model    = init_model,
                 receivers   = receivers,
                 transformer = ilt,
                 num_para_total = num_para_total,
+                delta = 2.,
                 fix_points = fix_points,
                 static_xy = static_xy,
                 Data_Obs = Data_measurement,
@@ -149,5 +150,5 @@ mu = ilt.transform(prior_mean)
 uq_P.set_initial_status([mu])
 if __name__ == '__main__':
     uq_P.forward_function(mu)
-    uq_P.run_mcmc(MCMCargs,RMH = True, HMC = True)
+    uq_P.run_mcmc(MCMCargs,RMH = False, HMC = True)
 # %%

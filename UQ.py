@@ -18,7 +18,7 @@ from gempy.assets.geophysics import GravityPreprocessing
 from GemPhy.Stat.Bayes import Stat_model
 
 class UQ_Patua():
-  def __init__(self,gp_model,Reg_kernel,receivers,transformer,num_para_total,fix_points = None, static_xy = None, args = None,Bayesargs = None,Data_Obs = None,
+  def __init__(self,gp_model,Reg_kernel,receivers,transformer,num_para_total,delta = 2.,fix_points = None, static_xy = None, args = None,Bayesargs = None,Data_Obs = None,
                num_fault_points = None,
                num_intrusion_points = None, 
                num_GT_points = None,) -> None:
@@ -40,7 +40,7 @@ class UQ_Patua():
 
     self.gp_model.activate_customized_grid(self.kernel)
     self.calculate_slope()
-    self.create_graph()
+    self.create_graph(delta = delta)
     self.init_stat_model(Data_Obs)
 
 
