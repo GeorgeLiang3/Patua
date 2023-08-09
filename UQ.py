@@ -114,37 +114,54 @@ class UQ_Patua():
     gravity = self.forward(sfp_xyz,all_properties,sigmoid)
     # reverse the axis and deduce the min
     gravity = -gravity
-    gravity = gravity - tf.math.reduce_min(gravity)
+    gravity = gravity - tf.math.reduce_mean(gravity)
     return gravity
   
-  def run_mcmc(self,MCMCargs, RMH = True, HMC = False, save = True):
+  def run_mcmc(self,MCMCargs, save = True):
     self.MCMCargs = MCMCargs
     mu0_list = self.init_stat
     samples_RMH_list = []
     accept_RMH_list = []
     samples_HMC_list = []
     accept_HMC_list = []
+    samples_NUTS_list = []
+    accept_NUTS_list = []
 
     for mu0 in mu0_list:
-        samples_RMH,samples_HMC,accept_RMH,accept_HMC = mcmc(mu0,self.stat_model, RMH = RMH, HMC = HMC,MCMCargs = MCMCargs)
+        samples_RMH,samples_HMC,samples_NUTS,accept_RMH,accept_HMC,accept_NUTS = mcmc(mu0,self.stat_model,MCMCargs = MCMCargs)
         samples_RMH_list.append(samples_RMH)
         accept_RMH_list.append(accept_RMH)
         samples_HMC_list.append(samples_HMC)
         accept_HMC_list.append(accept_HMC)
+        samples_NUTS_list.append(samples_NUTS)
+        accept_NUTS_list.append(accept_NUTS)
     if save:
-      self.save_results(samples_RMH_list,samples_HMC_list,accept_RMH_list,accept_HMC_list)
+      self.save_results(samples_RMH_list = samples_RMH_list,
+                        samples_HMC_list = samples_HMC_list,
+                        accept_RMH_list = accept_RMH_list,
+                        accept_HMC_list = accept_HMC_list,
+                        samples_NUTS_list = samples_NUTS_list,
+                        accept_NUTS_list = accept_NUTS_list)
+      
 
-  def save_results(self,samples_RMH_list,samples_HMC_list,accept_RMH_list,accept_HMC_list):
+  def save_results(self,**kwargs):
 
     self.stat_model.set_result_path('/home/ib012512/Documents/Results/'+self.args.foldername+time.strftime("-%Y%m%d-%H%M%S"))
 
     # %%
-    saving_dict = {'samples_RMH_list': samples_RMH_list,
-                  'accepted_rate_RMH':accept_RMH_list,
-                  'samples_HMC_list': samples_HMC_list,
-                  'accepted_rate_HMC':accept_HMC_list,
-                  # 'MAPs' : mu0_list,
-                  }
+    # saving_dict = {}
+    # for key in kwargs:
+    #   print('key:',key)
+    #   if kwargs[key] is not None:
+    #     saving_dict.update(zip(key,arg))
+    saving_dict = kwargs
+    print('saving_dict:',saving_dict)
+    # saving_dict = {'samples_RMH_list': samples_RMH_list,
+    #               'accepted_rate_RMH':accept_RMH_list,
+    #               'samples_HMC_list': samples_HMC_list,
+    #               'accepted_rate_HMC':accept_HMC_list,
+    #               # 'MAPs' : mu0_list,
+    #               }
     saving_dict.update(self.args)
     saving_dict.update(self.Bayesargs)
     saving_dict.update(self.MCMCargs)

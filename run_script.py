@@ -9,6 +9,8 @@ sys.path.append('/home/ib012512/Documents/GemPhy/GP_old')
 sys.path.append('/home/ib012512/Documents/')
 
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # %%
 
@@ -39,18 +41,22 @@ from LoadInputDataUtility import loadData
 # %%
 args = dotdict({
     "foldername": "Patua",
-    'resolution':[40,40,30]
+    'resolution':[15,15,10],
+    'num_data': 50,
 })
 
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
     'prior_den_std': 0.2,
-    'likelihood_std': 5
+    'likelihood_std': 5,
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
 MCMCargs = dotdict({
-    'num_results': 2,
+    'RMH':False,
+    'HMC':False,
+    'NUTS':True,
+    'num_results': 1000,
     'number_burnin':0,
     'RMH_step_size': 0.2,
     'HMC_step_size': 0.1,
@@ -62,8 +68,10 @@ P_model = PutuaModel()
 init_model = P_model.init_model()
 # %%
 init_model.compute_model()# TODO: Check if necessary. precompute the model to order the surfaces
+
 ObsData = loadData(P_model.P, number_data = 20)
 Data_obs = P_model.P['Grav']['Obs'] - (np.mean(P_model.P['Grav']['Obs']))
+
 Data_measurement = tf.cast(Data_obs,init_model.dtype) 
 
 # Define the receivers for gravity
@@ -76,7 +84,7 @@ Y_r = P_model.P['Grav']['yObs']
 Z_r = [model_extent[-1]]*P_model.P['Grav']['nObsPoints']
 
 xyz = np.stack((X_r,Y_r,Z_r)).T
-radius = [2000,2000,3000]
+radius = [1000,1000,2000]
 
 receivers = Receivers(radius,model_extent,xyz,kernel_resolution = args.resolution)
 
@@ -150,5 +158,6 @@ mu = ilt.transform(prior_mean)
 uq_P.set_initial_status([mu])
 if __name__ == '__main__':
     uq_P.forward_function(mu)
-    uq_P.run_mcmc(MCMCargs,RMH = False, HMC = True)
+    uq_P.run_mcmc(MCMCargs)
+
 # %%
