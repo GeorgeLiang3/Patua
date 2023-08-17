@@ -48,7 +48,7 @@ args = dotdict({
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
     'prior_den_std': 0.2,
-    'likelihood_std': 5,
+    'likelihood_std': 2,
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
@@ -69,7 +69,7 @@ init_model = P_model.init_model()
 # %%
 init_model.compute_model()# TODO: Check if necessary. precompute the model to order the surfaces
 
-ObsData = loadData(P_model.P, number_data = 20)
+ObsData = loadData(P_model.P, number_data = args.num_data)
 Data_obs = P_model.P['Grav']['Obs'] - (np.mean(P_model.P['Grav']['Obs']))
 
 Data_measurement = tf.cast(Data_obs,init_model.dtype) 
