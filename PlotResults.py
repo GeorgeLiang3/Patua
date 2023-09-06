@@ -51,7 +51,7 @@ gp.plot.plot_section(model,
 
 # %%
 
-def plot_result(mu, uq, ind = 18):
+def plot_result_3d(mu, uq, ind = 18):
   model = ModelTF(uq.gp_model)
   model.activate_regular_grid()
   model.create_tensorflow_graph(gradient=True,compute_gravity=True,max_slope = uq.max_slope)
@@ -94,7 +94,7 @@ plt_scatter(P_model.P['Grav']['xObs'] - P_model.P['xmin'], P_model.P['Grav']['yO
 plt_scatter(P_model.P['Grav']['xObs'] - P_model.P['xmin'], P_model.P['Grav']['yObs'] - P_model.P['ymin'], grav,ax=ax[1], title='Simulated Gravity', norm = None, s=22, edgecolors='k')
 # %%
 mu = np.zeros(23)
-plot_result(mu,uq_P, ind = 20)
+plot_result_3d(mu,uq_P, ind = 20)
 # %%
 xx = np.arange(model.resolution[0])
 plt.plot(xx, model.solutions.values_matrix[:model.resolution[0]])

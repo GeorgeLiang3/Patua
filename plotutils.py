@@ -16,9 +16,16 @@ def get_last_patua_file(directory):
         return None
 
 def plot_result(data):
-
-  samples_RMH = np.asarray(data['samples_RMH_list'])[0].T
-  samples_HMC = np.asarray(data['samples_HMC_list'])[0].T
+  sampling_list = {}
+  if data['samples_RMH_list'][0] is not None:
+    samples_RMH = np.asarray(data['samples_RMH_list'])[0].T
+    sampling_list['RMH'] = samples_RMH
+  if data['samples_HMC_list'][0] is not None:
+    samples_HMC = np.asarray(data['samples_HMC_list'])[0].T
+    sampling_list['HMC'] = samples_HMC
+  if data['samples_NUTS_list'][0] is not None:
+    samples_NUTS = np.asarray(data['samples_NUTS_list'])[0].T
+    sampling_list['NUTS'] = samples_NUTS
 
   def plot_traces(trace):
     num_para = trace.shape[0]
@@ -27,5 +34,8 @@ def plot_result(data):
           ax = plt.subplot(num_para//5+1, 5, i + 1)
           ax.plot(one_trace)
 
-  plot_traces(samples_RMH)
-  plot_traces(samples_HMC)
+  for sampling_trace in sampling_list:
+
+    plot_traces(sampling_list[sampling_trace])
+    # plot_traces(samples_RMH)
+    # plot_traces(samples_HMC)

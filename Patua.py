@@ -111,8 +111,8 @@ class PutuaModel():
         gp.assign_global_anisotropy(self.geo_data,mapping_object)
 
         # TODO: very hacky way to modify the order
-        self.geo_data.modify_order_surfaces(2,1)
-        self.geo_data.modify_order_surfaces(1,1)
+        self.geo_data.modify_order_surfaces(2,0) # Put order 2 to index 1
+        self.geo_data.modify_order_surfaces(3,0) # Put order 1 to index 1
         # assign densities to the model, fault series with -1 
         self.geo_data.add_surface_values([2.9,
                                           -1, -1, -1,-1, -1, -1,-1, -1, -1,-1, -1, -1, 

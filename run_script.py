@@ -56,10 +56,10 @@ MCMCargs = dotdict({
     'RMH':False,
     'HMC':False,
     'NUTS':True,
-    'num_results': 1000,
+    'num_results': 10,
     'number_burnin':0,
     'RMH_step_size': 0.2,
-    'HMC_step_size': 0.1,
+    'HMC_step_size': 0.01,
     'leapfrogs':4,
 })
 # %%
@@ -157,7 +157,7 @@ mu = ilt.transform(prior_mean)
 # %%
 uq_P.set_initial_status([mu])
 if __name__ == '__main__':
-    uq_P.forward_function(mu)
+    # uq_P.forward_function(mu)
     uq_P.run_mcmc(MCMCargs)
 
 # %%

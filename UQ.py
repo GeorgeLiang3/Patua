@@ -142,7 +142,7 @@ class UQ_Patua():
                         accept_HMC_list = accept_HMC_list,
                         samples_NUTS_list = samples_NUTS_list,
                         accept_NUTS_list = accept_NUTS_list)
-      
+    return samples_RMH_list,samples_HMC_list,samples_NUTS_list,accept_RMH_list,accept_HMC_list,accept_NUTS_list
 
   def save_results(self,**kwargs):
 
