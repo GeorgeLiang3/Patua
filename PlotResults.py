@@ -42,13 +42,23 @@ model.create_tensorflow_graph(gradient=True,compute_gravity=True,max_slope = uq_
 
 model.compute_model()
 # %%
-gp.plot.plot_section(model, 
+gp.plot.plot_section(model,
+                        block = 'lith_block',
                         cell_number=18,
                         direction='y',
                         show_grid=True, 
                         show_data=True,
                         colorbar = True,)
 
+# %%
+gp.plot.plot_section(model, 
+                     block = 'properties',
+                        cell_number=18,
+                        direction='y',
+                        show_data=True,cmap = 'viridis',
+                        show_legend = False,
+                        cbar_title = 'Density (g/cm3)',
+                        colorbar = True)
 # %%
 
 def plot_result_3d(mu, uq, ind = 18):

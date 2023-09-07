@@ -56,7 +56,7 @@ MCMCargs = dotdict({
     'RMH':False,
     'HMC':False,
     'NUTS':True,
-    'num_results': 10,
+    'num_results': 2,
     'number_burnin':0,
     'RMH_step_size': 0.2,
     'HMC_step_size': 0.01,

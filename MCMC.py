@@ -15,9 +15,9 @@ def mcmc(mu,stat_model,MCMCargs = None):
     NUTS = MCMCargs.NUTS
   else:
     NUTS = False
-
+  
   initial_chain_state = [mu]
-
+  print('initial_chain_state:',initial_chain_state)
   # RMH
   if RMH:
     states_RMH = stat_model.run_MCMC('RMH',

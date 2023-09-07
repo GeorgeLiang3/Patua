@@ -47,8 +47,8 @@ args = dotdict({
 })
 
 Bayesargs = dotdict({
-    'prior_sfp_std': 50,
-    'prior_dip_std': 10,
+    'prior_sfp_std': 30,
+    'prior_dip_std': 5,
     'prior_den_std': 0.2,
     'likelihood_std': 2,
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
@@ -56,9 +56,9 @@ Bayesargs = dotdict({
 
 MCMCargs = dotdict({
     'RMH':False,
-    'HMC':False,
-    'NUTS':True,
-    'num_results': 10,
+    'HMC':True,
+    'NUTS':False,
+    'num_results': 3,
     'number_burnin':0,
     'RMH_step_size': 0.2,
     'HMC_step_size': 0.01,
@@ -130,6 +130,7 @@ num_den_var = 5
 den_mean = constant64([2.9,2.1,2.2,2.3,2.8])
 den_std = constant64([0.2,0.17,0.1,0.14,0.1])
 
+# The input vector has shape [18 surface points, 5 density values,  12 dip angles]
 prior_mean = tf.concat([sfp_mean,den_mean,dip_mean],axis = 0)
 prior_std = tf.concat([sfp_std,den_std,dip_std],axis = 0)
 
@@ -170,7 +171,8 @@ mu = ilt.transform(prior_mean)
 # uq_P.stat_model.log_likelihood(mu)
 
 # %%
-uq_P.set_initial_status([mu])
+mu_list = uq_P.stat_model.mvn_prior.sample(2)
+uq_P.set_initial_status(mu_list)
 if __name__ == '__main__':
     # uq_P.forward_function(mu)
     uq_P.run_mcmc(MCMCargs)
