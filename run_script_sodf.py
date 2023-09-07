@@ -23,7 +23,8 @@ from gempy.core.grid_modules.grid_types import CenteredRegGrid
 # from gempy.core.tensor.modeltf_var import ModelTF
 
 
-from UQ import UQ_Patua
+from UQ_sodf import UQ_Patua
+from UQ_sodf import Gravity_forward
 
 from operator import add
 import numpy as np
@@ -47,6 +48,7 @@ args = dotdict({
 
 Bayesargs = dotdict({
     'prior_sfp_std': 50,
+    'prior_dip_std': 10,
     'prior_den_std': 0.2,
     'likelihood_std': 2,
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
@@ -70,7 +72,7 @@ init_model = P_model.init_model()
 init_model.compute_model()# TODO: Check if necessary. precompute the model to order the surfaces
 
 ObsData = loadData(P_model.P, number_data = args.num_data)
-Data_obs = P_model.P['Grav']['Obs'] - (np.mean(P_model.P['Grav']['Obs']))
+Data_obs = P_model.P['Grav']['Obs'] - (P_model.P['Grav']['Obs'])[0]
 
 Data_measurement = tf.cast(Data_obs,init_model.dtype) 
 
@@ -104,21 +106,32 @@ num_fix_points = num_fault_points + num_intrusion_points + num_GT_points # keep 
 ############################################
 
 # Be very careful here
+# Define the fixed surface points, which are all the intrusion points and Granite top points in this case
 fix_points = tf.concat([all_points[:num_intrusion_points+num_fault_points],all_points[-num_GT_points:]],axis = 0)
+# Only get the xy coordinates of the fixed points
 static_xy = all_points[:,0:2]
+# Get the shape of all the variable strata surface points
 strata_points = all_points[num_intrusion_points+num_fault_points:-num_GT_points]
 all_points_shape = all_points.shape
 
+# Define the fixed dip angles 
+fix_dip_angles = tf.concat([init_model.dip_angles[:4], init_model.dip_angles[16:]],axis = 0)
+
 num_sf_var = strata_points.shape[0]
+# Define the mean and std for surface points
 sfp_mean = strata_points[:,2]
 sfp_std = constant64([Bayesargs.prior_sfp_std]*num_sf_var)
+
+#Define the mean and std for dip angles
+dip_mean = init_model.dip_angles[4:16]
+dip_std = constant64([Bayesargs.prior_dip_std]*dip_mean.numpy().shape[0])
 
 num_den_var = 5
 den_mean = constant64([2.9,2.1,2.2,2.3,2.8])
 den_std = constant64([0.2,0.17,0.1,0.14,0.1])
 
-prior_mean = tf.concat([sfp_mean,den_mean],axis = 0)
-prior_std = tf.concat([sfp_std,den_std],axis = 0)
+prior_mean = tf.concat([sfp_mean,den_mean,dip_mean],axis = 0)
+prior_std = tf.concat([sfp_std,den_std,dip_std],axis = 0)
 
 num_para_total = prior_mean.shape[0]
 
@@ -131,15 +144,17 @@ ilt = ILT(lowerBound,upperBound)
 
 
 # %%
-
-uq_P = UQ_Patua(gp_model    = init_model,
+gf = Gravity_forward(gp_model    = init_model,
                 Reg_kernel  = Reg_kernel,
-                receivers   = receivers,
+                receivers   = receivers)
+
+uq_P = UQ_Patua(gravity_forward_model    = gf,
                 transformer = ilt,
                 num_para_total = num_para_total,
                 delta = 2.,
                 fix_points = fix_points,
                 static_xy = static_xy,
+                fix_dips = fix_dip_angles,
                 Data_Obs = Data_measurement,
                 args = args,
                 Bayesargs = Bayesargs,
@@ -148,15 +163,14 @@ uq_P = UQ_Patua(gp_model    = init_model,
                 num_GT_points = num_GT_points,
                 )
 # %%
-# mu = ilt.transform(prior_mean)
+mu = ilt.transform(prior_mean)
 # %%
 # uq_P.forward_function(mu)
 # %%
 # uq_P.stat_model.log_likelihood(mu)
 
 # %%
-mu_list = uq_P.stat_model.mvn_prior.sample(5)
-uq_P.set_initial_status(mu_list)
+uq_P.set_initial_status([mu])
 if __name__ == '__main__':
     # uq_P.forward_function(mu)
     uq_P.run_mcmc(MCMCargs)

@@ -114,7 +114,7 @@ class UQ_Patua():
     gravity = self.forward(sfp_xyz,all_properties,sigmoid)
     # reverse the axis and deduce the min
     gravity = -gravity
-    gravity = gravity - tf.math.reduce_mean(gravity)
+    gravity = gravity - (gravity)[0]
     return gravity
   
   def run_mcmc(self,MCMCargs, save = True):
