@@ -42,15 +42,15 @@ from LoadInputDataUtility import loadData
 # %%
 args = dotdict({
     "foldername": "Patua",
-    'resolution':[15,15,10],
+    'resolution':[20,20,20],
     'num_data': 50,
 })
 
 Bayesargs = dotdict({
-    'prior_sfp_std': 30,
-    'prior_dip_std': 5,
+    'prior_sfp_std': 20,
+    'prior_dip_std': 3,
     'prior_den_std': 0.2,
-    'likelihood_std': 2,
+    'likelihood_std': 2.5,
     # 'likelihood_std':0.09, #the gravity data has an error range approximately between 0.5 mGal to 2.5 mGal. - Pollack, A, 2021
 })
 
@@ -58,10 +58,10 @@ MCMCargs = dotdict({
     'RMH':False,
     'HMC':True,
     'NUTS':False,
-    'num_results': 3,
+    'num_results': 300,
     'number_burnin':0,
     'RMH_step_size': 0.2,
-    'HMC_step_size': 0.01,
+    'HMC_step_size': 0.1,
     'leapfrogs':4,
 })
 # %%
@@ -171,7 +171,7 @@ mu = ilt.transform(prior_mean)
 # uq_P.stat_model.log_likelihood(mu)
 
 # %%
-mu_list = uq_P.stat_model.mvn_prior.sample(2)
+mu_list = uq_P.stat_model.mvn_prior.sample(5)
 uq_P.set_initial_status(mu_list)
 if __name__ == '__main__':
     # uq_P.forward_function(mu)
